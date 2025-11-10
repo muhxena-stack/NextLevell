@@ -1,24 +1,18 @@
-// src/screens/OnboardingScreen2.tsx
-
 import React from 'react';
 import { View, Text, StyleSheet, Button, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-// 🛑 FIX: Ganti StackNavigationProp menjadi NativeStackNavigationProp
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'; 
 
-// 1. Definisikan Tipe Root Stack (Sama dengan RootNavigator.tsx)
 type RootStackParamList = {
     Onboarding1: undefined;
     Onboarding2: undefined;
-    AppTabs: undefined; // Screen yang dituju saat mengganti stack
+    App: undefined; 
 };
 
-// 2. Definisikan Tipe Prop Navigasi untuk Screen ini
 type OnboardingScreen2NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding2'>;
 
 
 const OnboardingScreen2 = () => {
-  // 3. Gunakan tipe tersebut saat memanggil useNavigation
   const navigation = useNavigation<OnboardingScreen2NavigationProp>();
   
   return (
@@ -30,8 +24,7 @@ const OnboardingScreen2 = () => {
             
             <Button 
                 title="Mulai Belanja Sekarang!"
-                // Navigasi yang valid
-                onPress={() => navigation.replace('AppTabs')} 
+                onPress={() => navigation.replace('App')} 
             />
         </View>
     </SafeAreaView>

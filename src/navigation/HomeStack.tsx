@@ -4,15 +4,13 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProductCatalogScreen from '../screens/ProductCatalogScreen';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
-import { Product } from '../types/types'; // Import Product
+import { Product } from '../types/types'; 
 
-// ➡️ Definisikan Tipe Home Stack
 export type HomeStackParamList = {
   Catalog: undefined; 
   Detail: { product: Product }; 
 };
 
-// ➡️ Gunakan tipe ini
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 const HomeStack = () => {
