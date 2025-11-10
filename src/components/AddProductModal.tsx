@@ -61,6 +61,7 @@ const AddProductModal: React.FC<AddProductModalProps> = ({ visible, onClose, onS
       harga: parsedHarga, 
       urlGambar: urlGambar.trim(),
       deskripsi: deskripsi.trim(),
+      kategori: ".",
     };
 
     // 5. Submit, Reset Form & Tutup Modal

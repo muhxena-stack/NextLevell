@@ -1,5 +1,3 @@
-// src/screens/OnboardingScreen1.tsx
-
 import React from 'react';
 import { 
     View, 
@@ -11,19 +9,16 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack'; 
 
-// 1. Definisikan Tipe Root Stack (Harus konsisten di RootNavigator dan semua Onboarding Screen)
 type RootStackParamList = {
     Onboarding1: undefined;
-    Onboarding2: undefined; // Tujuan navigasi berikutnya
-    AppTabs: undefined; 
+    Onboarding2: undefined; 
+    App: undefined; 
 };
 
-// 2. Definisikan Tipe Prop Navigasi yang Digunakan oleh Screen ini
 type OnboardingScreen1NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Onboarding1'>;
 
 
 const OnboardingScreen1 = () => {
-  // 3. Gunakan tipe tersebut saat memanggil useNavigation
   const navigation = useNavigation<OnboardingScreen1NavigationProp>();
   
   return (
@@ -54,7 +49,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     padding: 20,
   },
-  // ✅ FIX: Memastikan styles ini ada untuk menghilangkan garis merah
   emoji: {
       fontSize: 60,
       marginBottom: 20,

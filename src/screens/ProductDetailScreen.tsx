@@ -1,5 +1,3 @@
-// src/screens/ProductDetailScreen.tsx 
-
 import React from 'react';
 import { 
   View, 
@@ -11,12 +9,10 @@ import {
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { Product } from '../types/types'; 
 
-// Definisikan tipe route untuk mendapatkan params dari CatalogScreen
 type DetailScreenRouteProp = RouteProp<{ Detail: { product: Product } }, 'Detail'>;
 
 const ProductDetailScreen: React.FC = () => {
   const route = useRoute<DetailScreenRouteProp>();
-  // Pastikan produk ada sebelum diakses
   const product = route.params.product; 
 
   return (

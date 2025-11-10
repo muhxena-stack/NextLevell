@@ -14,12 +14,10 @@ const menuOptions = [
 ];
 
 const ProfileScreen: React.FC = () => {
-  // Hanya ambil useCart agar tidak muncul warning, tapi tidak digunakan
   const { getTotalItems, getTotalPrice } = useCart(); 
 
   const handleAction = (action?: string) => {
     if (action === 'logout') {
-      // Menggunakan Alert.alert() yang sudah benar
       Alert.alert(
         "Keluar Akun", 
         "Apakah Anda yakin ingin keluar dari akun?", 
@@ -91,7 +89,7 @@ const ProfileScreen: React.FC = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F7F7F7', // Latar belakang sangat muda
+    backgroundColor: '#F7F7F7', 
   },
   container: {
     flex: 1,
@@ -101,10 +99,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 30,
     backgroundColor: '#FFF',
-    marginBottom: 10, // Margin kecil
+    marginBottom: 10, 
   },
   avatarContainer: {
-    // Hanya menampilkan ikon besar, tidak perlu container berwarna
     marginBottom: 10,
   },
   userName: {
@@ -127,14 +124,14 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE', // Pembagi yang sangat tipis
+    borderBottomColor: '#EEEEEE', 
   },
   menuLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   menuIcon: {
-    width: 30, // Ruang yang cukup untuk ikon
+    width: 30, 
     marginRight: 15,
     textAlign: 'center',
   },

@@ -1,5 +1,3 @@
-// src/context/CartContext.tsx
-
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { Product, CartItem, CartContextType } from '../types/types';
 
