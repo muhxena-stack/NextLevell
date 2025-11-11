@@ -1,41 +1,41 @@
+// src/navigation/HomeTabs.tsx - UPDATE tabs
 import React from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import ProductCatalogScreen from '../screens/ProductCatalogScreen';
 
 const Tab = createMaterialTopTabNavigator();
 
-// Filter products berdasarkan kategori (simulasi)
-const PopularProducts = () => <ProductCatalogScreen filter="popular" />;
-const NewProducts = () => <ProductCatalogScreen filter="new" />;
-const DiscountProducts = () => <ProductCatalogScreen filter="discount" />;
-const ElectronicProducts = () => <ProductCatalogScreen filter="electronic" />;
-const ClothingProducts = () => <ProductCatalogScreen filter="clothing" />;
-const FoodProducts = () => <ProductCatalogScreen filter="food" />;
-const AutomotiveProducts = () => <ProductCatalogScreen filter="automotive" />;
-const BabyProducts = () => <ProductCatalogScreen filter="baby" />;
+// Buat component untuk setiap kategori
+const PopularProducts = () => <ProductCatalogScreen filter="Populer" />;
+const NewProducts = () => <ProductCatalogScreen filter="Terbaru" />;
+const DiscountProducts = () => <ProductCatalogScreen filter="Diskon" />;
+const ElectronicProducts = () => <ProductCatalogScreen filter="Elektronik" />;
+const AutomotiveProducts = () => <ProductCatalogScreen filter="Otomotif" />;
+const BabyProducts = () => <ProductCatalogScreen filter="Bayi" />;
+const ClothingProducts = () => <ProductCatalogScreen filter="Pakaian" />;
+const FoodProducts = () => <ProductCatalogScreen filter="Makanan" />;
 
 const HomeTabs = () => {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF', // Biru primer
+        tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
-        tabBarIndicatorStyle: { backgroundColor: '#007AFF' }, // Garis biru
-        tabBarLabelStyle: { textTransform: 'none', fontSize: 14 }, // Tidak uppercase
+        tabBarIndicatorStyle: { backgroundColor: '#007AFF' },
+        tabBarLabelStyle: { textTransform: 'none', fontSize: 12 },
         tabBarStyle: { backgroundColor: 'white' },
-        tabBarScrollEnabled: true, // Scroll horizontal (Tugas 5)
-        lazy: true, // Lazy loading (Tugas 3)
-        lazyPreloadDistance: 1, // Preload tab berdekatan (Tugas 3)
+        tabBarScrollEnabled: true,
+        lazy: true,
       }}
     >
       <Tab.Screen name="Populer" component={PopularProducts} />
       <Tab.Screen name="Terbaru" component={NewProducts} />
       <Tab.Screen name="Diskon" component={DiscountProducts} />
       <Tab.Screen name="Elektronik" component={ElectronicProducts} />
-      <Tab.Screen name="Pakaian" component={ClothingProducts} />
-      <Tab.Screen name="Makanan" component={FoodProducts} />
       <Tab.Screen name="Otomotif" component={AutomotiveProducts} />
       <Tab.Screen name="Bayi" component={BabyProducts} />
+      <Tab.Screen name="Pakaian" component={ClothingProducts} />
+      <Tab.Screen name="Makanan" component={FoodProducts} />
     </Tab.Navigator>
   );
 };
