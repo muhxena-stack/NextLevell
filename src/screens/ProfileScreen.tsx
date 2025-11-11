@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native'; // <-- Alert sudah diimpor
-import FontAwesome6 from 'react-native-vector-icons/FontAwesome6'; 
-import { useCart } from '../context/CartContext'; 
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+import { useCart } from '../context/CartContext';
 
-// Data dummy untuk opsi menu
 const menuOptions = [
   { id: 1, name: 'Pesanan Saya', icon: 'bag-shopping', screen: 'Orders' },
   { id: 2, name: 'Alamat Pengiriman', icon: 'location-dot', screen: 'Addresses' },
@@ -14,7 +13,7 @@ const menuOptions = [
 ];
 
 const ProfileScreen: React.FC = () => {
-  const { getTotalItems, getTotalPrice } = useCart(); 
+  const { getTotalItems, getTotalPrice } = useCart();
 
   const handleAction = (action?: string) => {
     if (action === 'logout') {
@@ -23,40 +22,31 @@ const ProfileScreen: React.FC = () => {
         "Apakah Anda yakin ingin keluar dari akun?", 
         [
           { text: "Batal", style: "cancel" },
-          { text: "Ya, Keluar", onPress: () => console.log('User logged out (Placeholder)') }
+          { text: "Ya, Keluar", onPress: () => console.log('User logged out') }
         ]
       );
     } else {
-      Alert.alert(
-        "Navigasi", 
-        `Navigasi ke ${action || 'Screen'} belum diimplementasikan.`, 
-      );
-      console.log(`Navigasi ke ${action || 'Screen'}`);
+      Alert.alert("Navigasi", `Navigasi ke ${action || 'Screen'} belum diimplementasikan.`);
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container}>
-        
-        {/* HEADER: FOTO PROFIL & NAMA */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            {/* FOTO PROFIL SIMPEL */}
-            <FontAwesome6 name="user-circle" size={90} color="#007AFF" /> 
+            <FontAwesome6 name="user-circle" size={90} color="#007AFF" />
           </View>
           <Text style={styles.userName}>NextLevel</Text>
           <Text style={styles.userEmail}>pengguna123@email.com</Text>
         </View>
 
-        {/* MENU OPSI SIMPEL */}
         <View style={styles.menuContainer}>
           {menuOptions.map((item, index) => (
             <TouchableOpacity
               key={item.id}
               style={[
                 styles.menuItem, 
-                // Hapus border di item terakhir
                 index === menuOptions.length - 1 ? { borderBottomWidth: 0 } : {}
               ]}
               onPress={() => handleAction(item.action || item.screen)}
@@ -70,7 +60,6 @@ const ProfileScreen: React.FC = () => {
                 />
                 <Text style={[styles.menuText, { color: item.color || '#333' }]}>{item.name}</Text>
               </View>
-              {/* Hanya tampilkan chevron untuk item biasa */}
               {item.action !== 'logout' && (
                 <FontAwesome6 name="chevron-right" size={12} color="#999" />
               )}
@@ -78,73 +67,25 @@ const ProfileScreen: React.FC = () => {
           ))}
         </View>
         
-        {/* Footer info (Opsional) */}
         <Text style={styles.versionText}>Versi Aplikasi 1.0</Text>
-
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F7F7F7', 
-  },
-  container: {
-    flex: 1,
-  },
-  // --- HEADER ---
-  header: {
-    alignItems: 'center',
-    paddingVertical: 30,
-    backgroundColor: '#FFF',
-    marginBottom: 10, 
-  },
-  avatarContainer: {
-    marginBottom: 10,
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#888',
-  },
-  // --- MENU ---
-  menuContainer: {
-    backgroundColor: '#FFF',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE', 
-  },
-  menuLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuIcon: {
-    width: 30, 
-    marginRight: 15,
-    textAlign: 'center',
-  },
-  menuText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  versionText: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 10,
-    color: '#AAAAAA',
-  }
+  safeArea: { flex: 1, backgroundColor: '#F7F7F7' },
+  container: { flex: 1 },
+  header: { alignItems: 'center', paddingVertical: 30, backgroundColor: '#FFF', marginBottom: 10 },
+  avatarContainer: { marginBottom: 10 },
+  userName: { fontSize: 18, fontWeight: 'bold', color: '#333' },
+  userEmail: { fontSize: 12, color: '#888' },
+  menuContainer: { backgroundColor: '#FFF' },
+  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#EEEEEE' },
+  menuLeft: { flexDirection: 'row', alignItems: 'center' },
+  menuIcon: { width: 30, marginRight: 15, textAlign: 'center' },
+  menuText: { fontSize: 16, color: '#333' },
+  versionText: { textAlign: 'center', marginTop: 20, fontSize: 10, color: '#AAAAAA' }
 });
 
 export default ProfileScreen;

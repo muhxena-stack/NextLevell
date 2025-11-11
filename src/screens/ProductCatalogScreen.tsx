@@ -1,4 +1,3 @@
-// src/screens/ProductCatalogScreen.tsx (UPDATE)
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -8,17 +7,16 @@ import {
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack'; 
-
-import { getResponsiveCardWidth } from '../utils/responsive'; 
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getResponsiveCardWidth } from '../utils/responsive';
 import ProductItem from '../components/ProductItem';
 import AddProductModal from '../components/AddProductModal';
-import { initialProducts } from '../data/initialProducts'; 
-import { Product } from '../types/types'; 
+import { initialProducts } from '../data/initialProducts';
+import { Product } from '../types/types';
 import { HomeStackParamList } from '../navigation/HomeStack';
 
-type ProductCatalogScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'Catalog'>;
+type ProductCatalogScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeTabs'>;
 
 interface Props {
   filter?: string;
@@ -32,62 +30,61 @@ const ProductCatalogScreen: React.FC<Props> = ({ filter = 'all' }) => {
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
 
-  // Filter products berdasarkan kategori (Tugas 2 & 5)
- useEffect(() => {
+  useEffect(() => {
   let filtered = [...products];
   
-  // FILTER BERDASARKAN KATEGORI PRODUK
+  // FILTER BERDASARKAN KATEGORI YANG SESUAI
   switch (filter) {
     case 'Populer':
-      filtered = products.filter(p => p.kategori === 'Populer');
+      filtered = products
+        .filter(p => p.harga > 1000000)
+        .sort((a, b) => b.harga - a.harga)
+        .slice(0, 6);
       break;
+      
     case 'Terbaru':
-      filtered = products.filter(p => p.kategori === 'Terbaru');
+      filtered = products
+        .sort((a, b) => b.id - a.id)
+        .slice(0, 6);
       break;
+      
     case 'Diskon':
-      filtered = products.filter(p => p.kategori === 'Diskon');
+      filtered = products.filter(p => p.harga < 1000000);
       break;
+      
     case 'Elektronik':
       filtered = products.filter(p => p.kategori === 'Elektronik');
       break;
-    case 'Pakaian':
-      filtered = products.filter(p => p.kategori === 'Pakaian');
-      break;
-    case 'Makanan':
-      filtered = products.filter(p => p.kategori === 'Makanan');
-      break;
+      
     case 'Otomotif':
       filtered = products.filter(p => p.kategori === 'Otomotif');
       break;
+      
     case 'Bayi':
       filtered = products.filter(p => p.kategori === 'Bayi');
       break;
+      
+    case 'Pakaian':
+      filtered = products.filter(p => p.kategori === 'Pakaian');
+      break;
+      
+    case 'Makanan':
+      filtered = products.filter(p => p.kategori === 'Makanan');
+      break;
+      
     default:
-      filtered = products; // Tampilkan semua jika tidak ada filter
+      filtered = products;
   }
   
   setFilteredProducts(filtered);
 }, [filter, products]);
 
-  // Lazy Loading Effect untuk Tab Diskon (Tugas 3)
-  useFocusEffect(
-    React.useCallback(() => {
-      if (filter === 'discount') {
-        console.log('🔄 Tab Diskon: Konten dimuat dan difokuskan');
-        
-        return () => {
-          console.log('🧹 Tab Diskon: Konten dibersihkan');
-        };
-      }
-    }, [filter])
-  );
-
   const handleAddProduct = (newProduct: Product) => {
-    setProducts(prevProducts => [newProduct, ...prevProducts]); 
+    setProducts(prevProducts => [newProduct, ...prevProducts]);
   };
 
   const handleViewDetail = (product: Product) => {
-    navigation.navigate('Detail', { product: product });
+    navigation.navigate('ProductDetail', { product: product });
   };
   
   const cardWidth = getResponsiveCardWidth(width);
@@ -119,7 +116,7 @@ const ProductCatalogScreen: React.FC<Props> = ({ filter = 'all' }) => {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderProductItem}
         contentContainerStyle={styles.list}
-        numColumns={numColumns} 
+        numColumns={numColumns}
         key={numColumns.toString()}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -130,22 +127,21 @@ const ProductCatalogScreen: React.FC<Props> = ({ filter = 'all' }) => {
 
       <AddProductModal
         visible={isAddModalVisible}
-        onClose={() => setIsAddModalVisible(false)} 
-        onSubmit={handleAddProduct} 
+        onClose={() => setIsAddModalVisible(false)}
+        onSubmit={handleAddProduct}
       />
     </View>
   );
 };
 
-// Styles tetap sama...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F9FC', 
+    backgroundColor: '#F7F9FC',
   },
   headerText: {
-    fontSize: 22, 
-    fontWeight: '700', 
+    fontSize: 22,
+    fontWeight: '700',
     paddingVertical: 18,
     paddingHorizontal: 15,
     backgroundColor: '#FFFFFF',
@@ -154,8 +150,8 @@ const styles = StyleSheet.create({
   },
   list: {
     flexGrow: 1,
-    padding: 5, 
-    justifyContent: 'space-between', 
+    padding: 5,
+    justifyContent: 'space-between',
   },
   buttonWrapper: {
     padding: 15,
@@ -164,7 +160,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e0e0e0',
   },
   addButton: {
-      backgroundColor: '#4CAF50', 
+      backgroundColor: '#4CAF50',
       padding: 12,
       borderRadius: 8,
       alignItems: 'center',

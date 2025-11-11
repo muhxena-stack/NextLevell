@@ -1,100 +1,125 @@
 import { Product } from '../types/types';
 
 export const initialProducts: Product[] = [
+  // === ELEKTRONIK ===
   {
     id: 1,
-    nama: "PlayStation 5Pro",
+    nama: "PlayStation 5 Pro",
     harga: 13000000,
     urlGambar: "https://www.cnet.com/a/img/resize/75a55c7b9c563ac79090b072ba21b9a363133150/hub/2024/11/05/75bc8592-5b67-4ebc-990c-1097dd27f7e7/intro-00-00-01-47-still001.jpg?auto=webp&width=1200", 
-    deskripsi: "PS5 Pro adalah konsol PlayStation 5 yang lebih bertenaga dengan peningkatan grafis signifikan berkat GPU yang lebih kuat (\(16,7\) TFLOPS) dan dukungan untuk ray tracing yang lebih baik, yang menghasilkan grafis lebih tajam dan frame rate lebih halus. Konsol ini memiliki SSD 2TB, CPU fast 8-core, 16GB RAM, dan konektivitas Wi-Fi 7 untuk performa maksimal. Desainnya mirip dengan model standar namun lebih ringkas, dengan dua port USB-C di depan dan SSD 2TB di dalamnya, serta opsi untuk membeli disc drive secara terpisah. .",
-    kategori: "Elektronik"
+    deskripsi: "PS5 Pro adalah konsol PlayStation 5 yang lebih bertenaga dengan peningkatan grafis signifikan...",
+    kategori: "Elektronik",
   },
   {
     id: 2,
     nama: "STIK PS 5 Dualsense ORI",
     harga: 1270000,
     urlGambar: "https://asset.kompas.com/crops/K_VSYZtAehPs3g6MSanUCWgH978=/85x0:1098x675/1200x800/data/photo/2022/08/24/63057a3eefaae.png",
-    deskripsi: "stik nirkabel DualSense asli dari Sony, yang dilengkapi teknologi inovatif seperti haptic feedback, adaptive triggers, dan sensor gerak enam sumbu. Stik ini terhubung melalui Bluetooth atau USB, ditenagai oleh baterai lithium-ion internal 1560mAh, dan memiliki fitur touchpad, mikrofon, port audio, serta light indicators.",
-    kategori: "Elektronik"
+    deskripsi: "Stik nirkabel DualSense asli dari Sony dengan teknologi haptic feedback...",
+    kategori: "Elektronik",
   },
   {
     id: 3,
     nama: "Nintendo Switch 2",
     harga: 8000000,
     urlGambar: "https://assets.pikiran-rakyat.com/crop/0x0:0x0/1200x675/photo/2025/04/04/3283799775.jpg",
-    deskripsi: "Konsol ini merupakan penerus generasi sebelumnya dengan peningkatan signifikan pada performa dan fitur, namun tetap mempertahankan konsep hibrida (handheld dan konsol rumahan).",
-    kategori: "Elektronik"
+    deskripsi: "Konsol penerus generasi sebelumnya dengan peningkatan performa dan fitur...",
+    kategori: "Elektronik",
   },
   {
     id: 4,
     nama: "Legion Pro 7i Gen 9",
     harga: 60000000,
     urlGambar: "https://laptopmedia.com/wp-content/uploads/2024/05/5-1.jpg",
-    deskripsi: "Lenovo Legion Pro 7i Gen 9 adalah laptop gaming kelas atas yang menggabungkan performa ekstrem dari prosesor Intel Core Ultra 9 dan kartu grafis NVIDIA GeForce RTX 50 Series dengan layar beresolusi tinggi, refresh rate cepat, dan sistem pendingin canggih.",
-    kategori: "Elektronik"
-  },
-  {
-    id: 5,
-    nama: "Mouse Gaming JETEX MSX1 Series",
-    harga: 200000,
-    urlGambar: "https://jete.id/wp-content/uploads/2023/05/Packing-JETEX-MSX1.jpg",
-    deskripsi: " mouse gaming optik dengan 6 tombol yang dapat diprogram, lampu LED RGB, dan sensitivitas yang dapat disesuaikan antara 1200-3600 DPI. Mouse ini memiliki desain ergonomis, daya tahan hingga 3 juta klik, dan kabel USB sepanjang 1,6 meter. Cocok untuk gaming dan penggunaan sehari-hari, serta kompatibel dengan Windows, macOS, dan Linux.",
-    kategori: "Elektronik"
-  },
-  {
-    id: 6,
-    nama: "Keyboard Gaming Sades Thyrsus",
-    harga: 600000,
-    urlGambar: "https://www.sades.co.id/wp-content/uploads/2018/12/thyrsus-gambar-gallery-slide-2.png",
-    deskripsi: " keyboard gaming mekanis full size yang direkomendasikan karena menggunakan switch Kailh LH Blue yang responsif, mendukung fitur anti-ghosting untuk semua tombol, dan memiliki lampu latar RGB yang dapat disesuaikan. Keyboard ini juga dilengkapi dengan ketahanan tombol hingga 80 juta kali ketukan, interface USB gold plated, dan desain futuristik.",
-    kategori: "Elektronik"
-  },
-  {
-    id: 7,
-    nama: "Logitech G333 Gaming Earphone Black",
-    harga: 579000,
-    urlGambar: "https://www.kidzstation.co.id/cdn/shop/files/0888-CVN000925-3.jpg?v=1736331441&width=990",
-    deskripsi: "Logitech G333 adalah earphone gaming in-ear yang dirancang untuk memberikan audio jernih dengan dual driver, satu untuk nada tinggi/sedang dan satu untuk bass. Earphone ini dilengkapi mikrofon in-line untuk komunikasi yang jelas, kontrol terintegrasi, dan kabel pipih yang tidak mudah kusut. Kompatibel dengan berbagai platform seperti PC, konsol (Xbox, PlayStation, Nintendo), dan mobile, G333 menyertakan konektor 3,5 mm dan adaptor USB-C",
-    kategori: "Elektronik"
-  },
-  {
-    id: 8,
-    nama: "Rexus Cooling Pad Breeze 5 Fan With RGB",
-    harga: 350000,
-    urlGambar: "https://images.tokopedia.net/img/cache/700/VqbcmM/2024/12/7/3bcc9937-5c4a-459a-bddd-9a51bf20731e.jpg",
-    deskripsi: "Rexus Cooling Pad Breeze 5 Fan with RGB, yang dikenal sebagai Breeze B150, dirancang untuk menjaga laptop tetap dingin dan optimal dengan lima kipasnya. Cooling pad ini memiliki fitur-fitur yang mendukung kenyamanan dan performa saat digunakan.",
-    kategori: "Elektronik"
-  },
-  {
-    id: 9,
-    nama: "Stand Holder Hp ",
-    harga: 10000,
-    urlGambar: "https://id-live-01.slatic.net/p/e83304f465e9d91aa3aa3966469d743b.jpg",
-    deskripsi: "Stand ini adalah dudukan ponsel lipat yang dirancang untuk penggunaan di meja atau permukaan datar lainnya. Model ini memiliki desain yang elegan dan kokoh, menjadikannya aksesori yang fungsional dan cocok untuk berbagai kegiatan. Bentuknya yang ringkas dan kemampuannya untuk dilipat membuatnya mudah disimpan dan dibawa bepergian.",
-    kategori: "Elektronik"
+    deskripsi: "Laptop gaming kelas atas dengan prosesor Intel Core Ultra 9 dan grafis NVIDIA RTX...",
+    kategori: "Elektronik",
   },
   {
     id: 10,
-    nama: "TCL C655 QLED Pro 43Inch ",
+    nama: "TCL C655 QLED Pro 43Inch",
     harga: 4899000,
     urlGambar: "https://down-id.img.susercontent.com/file/sg-11134201-7rdwo-lzq4cqrrmm120e@resize_w900_nl.webp",
-    deskripsi: "TV TCL C655 QLED Pro ukuran 43 inci adalah Google TV 4K UHD dengan teknologi QLED Pro, prosesor AiPQ Pro, dan fitur Game Master untuk pengalaman visual superior dan gaming yang mulus.",
-    kategori: "Elektronik"
-  },
+    deskripsi: "TV 4K UHD dengan teknologi QLED Pro dan fitur Game Master...",
+    kategori: "Elektronik",
+  },
+
+  // === OTOMOTIF ===
+  {
+    id: 5,
+    nama: "Velg HSR DAIMON 7007 R15 BLACK CHROME",
+    harga: 6000000,
+    urlGambar: "https://hsrwheel.com/wp-content/uploads/2025/11/DAIMON-7007-HSR-Ring-15X6.5-Hole-8X100-114.3-ET40-BLACK-CHROME-kanan.jpg",
+    deskripsi: "Accent, Agya, Avanza, Ayla, Baleno, Brio, Jazz, Karimun, Kijang LGX, Lancer, March, Mazda 2, Mirage, Mobilio, Panther, Raize, Rocky, Sigra, Sirion, Splash, Swift, Vios, Xenia, Yaris, dan type mobil lain dengan ukuran PCD 8X100-114,3",
+    kategori: "Otomotif",
+  },
+  {
+    id: 6,
+    nama: "Sparco Grid-Q",
+    harga: 2600000,
+    urlGambar: "https://www.raceanywhere.co.uk/cdn/shop/products/SPA008009RN-SparcoSeatGridIIQRT_1024x1024_dfa52d16-9fa6-4a4f-94af-e20574c6b9d6_1024x1024.jpg?v=1618845313",
+    deskripsi: "Jok Sparco terpopuler di Race Anywhere! Diperbarui dengan teknologi QRT terbaru, jok GRID tetap mempertahankan fitur mobilitas tingginya berkat bobotnya yang ringan di bawah.",
+    kategori: "Otomotif",
+  },
+  {
+    id: 7,
+    nama: "Shell Advance AX7 Scooter 10W-30",
+    harga: 64000,
+    urlGambar: "https://img.id.my-best.com/product_images/ab1eace8097462ff26f6355674fe87ba.jpeg?ixlib=rails-4.3.1&q=70&lossless=0&w=800&h=800&fit=clip&s=f5a0e6dc1ec95e827df93642f67e35ff",
+    deskripsi: "Shell Advance AX7 Scooter 10W-30 adalah pelumas skuter 4-tak semisintesis dengan Teknologi RCE (Reliability of oil-performance, Control, Enjoyable ride)..",
+    kategori: "Otomotif",
+  },
+
+  // === BAYI ===
+  {
+    id: 8,
+    nama: "Baby Stroller Lipat",
+    harga: 1900000,
+    urlGambar: "https://image.made-in-china.com/202f0j00oqublSGBhQkV/Lightweight-Baby-Strollers-One-Handed-One-Step-Fold-Stands-Folded-Baby-Strollers.webp",
+    deskripsi: "Roller bayi ringan yang dapat dilipat satu tangan satu Langkah dapat dilipat Lipat.",
+    kategori: "Bayi",
+  },
+  {
+    id: 9,
+    nama: "Ranjang Bayi",
+    harga: 990000,
+    urlGambar: "https://image.made-in-china.com/202f0j00eMbktZSqnrcQ/Multifunctional-Baby-Crib-Removable-Portable-Folding-Newborn-Baby-Bedside-Bed-Cradle-Bed.webp",
+    deskripsi: "Buaian bayi multifungsi, tempat tidur bayi portabel melipat bayi Tempat Tidur Cradle.",
+    kategori: "Bayi",
+  },
+
+  // === PAKAIAN ===
   {
     id: 11,
     nama: "Rucas",
-    harga: 2000000,
-    urlGambar: "https://down-id.img.susercontent.com/file/id-11134207-7rbk7-ma6u9sjm8f0r7b",
-    deskripsi: "The Initial Hand Stitch Black Tee dan The Initial Python Texture Tee",
-    kategori: "pakaian"
+    harga: 1200000,
+    urlGambar: "https://assets.voila.id/voila/images/product/rucas/1product-RCSINSPLTS001-Xms-2025-05-21T1157150700.jpeg",
+    deskripsi: "Initial Splash T-Shirt Grey",
+    kategori: "Pakaian",
   },
   {
     id: 12,
-    nama: "",
-    harga: 0,
-    urlGambar: "",
-    deskripsi: "",
-    kategori: ""
+    nama: "Praedae",
+    harga: 220000,
+    urlGambar: "https://s3-ap-southeast-1.amazonaws.com/plugolive/vendor/5924/product/45_1754799333687.png",
+    deskripsi: "Hopeless Romantic Black Tee (without box)",
+    kategori: "Pakaian",
+  },
+
+  // === MAKANAN ===
+  {
+    id: 13,
+    nama: "Chitato Lite",
+    harga: 22000,
+    urlGambar: "https://id-live-01.slatic.net/p/3b2eec46ac6e48bb9c20d4069c1bbad6.jpg",
+    deskripsi: "Chitato Lite adalah varian camilan kentang dari merek Chitato yang dibuat dengan tekstur lebih tipis dan ringan dibanding versi originalnya.",
+    kategori: "Makanan",
+  },
+  {
+    id: 14,
+    nama: "Chocopie",
+    harga: 48000,
+    urlGambar: "https://cdn.kibrispdr.org/data/312/gambar-choco-pie-45.jpg",
+    deskripsi: "Choco Pie adalah camilan manis berbentuk bulat yang terdiri dari dua lapis kue lembut dengan isi marshmallow manis di tengahnya, lalu dilapisi cokelat di bagian luar.",
+    kategori: "Makanan",
   },
 ];

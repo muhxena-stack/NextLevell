@@ -1,37 +1,37 @@
-// src/navigation/HomeStack.tsx
-
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import ProductCatalogScreen from '../screens/ProductCatalogScreen';
+import HomeTabs from './HomeTabs';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
-import { Product } from '../types/types'; 
+import { Product } from '../types/types';
 
 export type HomeStackParamList = {
-  Catalog: undefined; 
-  Detail: { product: Product }; 
+  HomeTabs: undefined;
+  ProductDetail: { product: Product };
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 const HomeStack = () => {
   return (
-    <Stack.Navigator
-      screenOptions={{ 
-        headerTintColor: '#fff',
-        headerStyle: { backgroundColor: '#007AFF' },
-        headerTitleStyle: { fontWeight: 'bold' }
-      }}
-    >
+    <Stack.Navigator>
       <Stack.Screen 
-        name="Catalog" 
-        component={ProductCatalogScreen} 
-        options={{ headerShown: false }}
+        name="HomeTabs" 
+        component={HomeTabs} 
+        options={{ 
+          title: 'Katalog Produk',
+          headerStyle: { backgroundColor: '#007AFF' },
+          headerTintColor: '#fff',
+          headerTitleStyle: { fontWeight: 'bold' },
+        }}
       />
       <Stack.Screen 
-        name="Detail" 
+        name="ProductDetail" 
         component={ProductDetailScreen} 
-        // FIX: Tipe kini dikenal
-        options={({ route }) => ({ title: route.params.product.nama })} 
+        options={({ route }) => ({ 
+          title: route.params.product.nama,
+          headerStyle: { backgroundColor: '#007AFF' },
+          headerTintColor: '#fff',
+        })} 
       />
     </Stack.Navigator>
   );
