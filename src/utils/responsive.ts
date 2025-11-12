@@ -1,33 +1,25 @@
 // src/utils/responsive.ts
+import { Dimensions, DimensionValue } from 'react-native';
 
-import { Dimensions } from 'react-native';
+const { width, height } = Dimensions.get('window');
 
-const WINDOW_WIDTH = Dimensions.get('window').width;
+export const isTablet = width >= 768;
+export const isLandscape = width > height;
 
-// Definisikan breakpoint yang umum (Mobile, Tablet, Desktop)
-const BREAKPOINTS = {
-  sm: 360, // Mobile kecil
-  md: 600, // Tablet portrait atau Mobile landscape
-  lg: 992, // Tablet landscape atau Desktop
+export const getResponsiveCardWidth = (screenWidth: number): DimensionValue => {
+  if (screenWidth < 375) return '100%'; // Small phones
+  if (screenWidth < 768) return '48%';  // Phones
+  if (screenWidth < 1024) return '32%'; // Tablets
+  return '24%'; // Large tablets/desktop
 };
 
-export const isTabletOrLandscape = (width: number) => width >= BREAKPOINTS.md;
-export const isDesktop = (width: number) => width >= BREAKPOINTS.lg;
+export const getResponsiveFontSize = (size: number): number => {
+  const scale = isTablet ? 1.2 : 1;
+  return size * scale;
+};
 
-/**
- * Menghitung lebar card produk yang responsif berdasarkan lebar layar
- * @param currentWidth Lebar layar saat ini dari useWindowDimensions
- * @returns {string} Persentase lebar card (misalnya '100%', '48%', '31%')
- */
-export const getResponsiveCardWidth = (currentWidth: number): string => {
-  if (isDesktop(currentWidth)) {
-    // 3 kolom untuk layar sangat lebar (misalnya tablet landscape)
-    return '31%'; 
-  }
-  if (isTabletOrLandscape(currentWidth)) {
-    // 2 kolom untuk tablet atau mode landscape
-    return '48%';
-  }
-  // 1 kolom untuk mode portrait mobile
-  return '100%'; 
+export const getResponsivePadding = (): number => {
+  if (width < 375) return 12;
+  if (width < 768) return 16;
+  return 20;
 };

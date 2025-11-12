@@ -1,3 +1,4 @@
+// src/screens/ProductCatalogScreen.tsx (alternatif lebih clean)
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -6,9 +7,11 @@ import {
   View, 
   TouchableOpacity,
   useWindowDimensions,
+  Dimensions
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { getResponsiveCardWidth } from '../utils/responsive';
 import ProductItem from '../components/ProductItem';
 import AddProductModal from '../components/AddProductModal';
@@ -18,66 +21,93 @@ import { HomeStackParamList } from '../navigation/HomeStack';
 
 type ProductCatalogScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeTabs'>;
 
-interface Props {
+interface RouteParams {
   filter?: string;
 }
 
-const ProductCatalogScreen: React.FC<Props> = ({ filter = 'all' }) => {
-  const { width } = useWindowDimensions();
+const ProductCatalogScreen: React.FC = () => {
+  const { width, height } = useWindowDimensions();
   const navigation = useNavigation<ProductCatalogScreenNavigationProp>();
-  
+  const route = useRoute();
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [isLandscape, setIsLandscape] = useState(width > height);
+
+  const routeParams = route.params as RouteParams;
+  const filter = routeParams?.filter || 'all';
 
   useEffect(() => {
-  let filtered = [...products];
-  
-  // FILTER BERDASARKAN KATEGORI YANG SESUAI
-  switch (filter) {
-    case 'Populer':
-      filtered = products
-        .filter(p => p.harga > 1000000)
-        .sort((a, b) => b.harga - a.harga)
-        .slice(0, 6);
-      break;
-      
-    case 'Terbaru':
-      filtered = products
-        .sort((a, b) => b.id - a.id)
-        .slice(0, 6);
-      break;
-      
-    case 'Diskon':
-      filtered = products.filter(p => p.harga < 1000000);
-      break;
-      
-    case 'Elektronik':
-      filtered = products.filter(p => p.kategori === 'Elektronik');
-      break;
-      
-    case 'Otomotif':
-      filtered = products.filter(p => p.kategori === 'Otomotif');
-      break;
-      
-    case 'Bayi':
-      filtered = products.filter(p => p.kategori === 'Bayi');
-      break;
-      
-    case 'Pakaian':
-      filtered = products.filter(p => p.kategori === 'Pakaian');
-      break;
-      
-    case 'Makanan':
-      filtered = products.filter(p => p.kategori === 'Makanan');
-      break;
-      
-    default:
-      filtered = products;
-  }
-  
-  setFilteredProducts(filtered);
-}, [filter, products]);
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setIsLandscape(window.width > window.height);
+    });
+
+    return () => subscription?.remove();
+  }, []);
+
+  // Tugas 7: Dynamic Header Title
+  useFocusEffect(
+    React.useCallback(() => {
+      if (filter === 'Populer') {
+        navigation.getParent()?.setOptions({
+          title: 'Product ter Populer!'
+        });
+      }
+
+      return () => {
+        navigation.getParent()?.setOptions({
+          title: 'Katalog Produk'
+        });
+      };
+    }, [filter, navigation])
+  );
+
+  // Tugas 9: Toggle Drawer dari Child
+  const handleToggleDrawer = () => {
+    const drawerParent = navigation.getParent()?.getParent();
+    const drawerNavigation = drawerParent as DrawerNavigationProp<any> | null;
+    
+    if (drawerNavigation && 'toggleDrawer' in drawerNavigation) {
+      drawerNavigation.toggleDrawer();
+    }
+  };
+
+  useEffect(() => {
+    let filtered = [...products];
+    
+    switch (filter) {
+      case 'Populer':
+        filtered = products
+          .filter(p => (p.rating || 0) >= 4.5)
+          .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+          .slice(0, 6);
+        break;
+      case 'Terbaru':
+        filtered = products
+          .sort((a, b) => b.id - a.id)
+          .slice(0, 6);
+        break;
+      case 'Elektronik':
+        filtered = products.filter(p => p.kategori === 'Elektronik');
+        break;
+      case 'Otomotif':
+        filtered = products.filter(p => p.kategori === 'Otomotif');
+        break;
+      case 'Bayi':
+        filtered = products.filter(p => p.kategori === 'Bayi');
+        break;
+      case 'Pakaian':
+        filtered = products.filter(p => p.kategori === 'Pakaian');
+        break;
+      case 'Makanan':
+        filtered = products.filter(p => p.kategori === 'Makanan');
+        break;
+      default:
+        filtered = products;
+    }
+    
+    setFilteredProducts(filtered);
+  }, [filter, products]);
 
   const handleAddProduct = (newProduct: Product) => {
     setProducts(prevProducts => [newProduct, ...prevProducts]);
@@ -88,7 +118,9 @@ const ProductCatalogScreen: React.FC<Props> = ({ filter = 'all' }) => {
   };
   
   const cardWidth = getResponsiveCardWidth(width);
-  const numColumns = cardWidth === '100%' ? 1 : (cardWidth === '48%' ? 2 : 3);
+  const numColumns = isLandscape ? 
+    (cardWidth === '100%' ? 2 : (cardWidth === '48%' ? 3 : 4)) :
+    (cardWidth === '100%' ? 1 : (cardWidth === '48%' ? 2 : 3));
 
   const renderProductItem = ({ item }: { item: Product }) => (
     <ProductItem 
@@ -98,37 +130,101 @@ const ProductCatalogScreen: React.FC<Props> = ({ filter = 'all' }) => {
     />
   );
 
+  const getProductCountText = () => {
+    switch (filter) {
+      case 'Elektronik':
+        return `(${filteredProducts.length} produk elektronik)`;
+      case 'Otomotif':
+        return `(${filteredProducts.length} produk otomotif)`;
+      case 'Bayi':
+        return `(${filteredProducts.length} produk bayi)`;
+      case 'Pakaian':
+        return `(${filteredProducts.length} produk pakaian)`;
+      case 'Makanan':
+        return `(${filteredProducts.length} produk makanan)`;
+      case 'Populer':
+        return `(${filteredProducts.length} produk pilihan)`;
+      case 'Terbaru':
+        return `(${filteredProducts.length} produk terbaru)`;
+      default:
+        return `(${filteredProducts.length} total produk)`;
+    }
+  };
+
+  const getHeaderTitle = () => {
+    switch (filter) {
+      case 'all':
+        return 'Semua Produk';
+      case 'Populer':
+        return 'Produk Populer';
+      case 'Terbaru':
+        return 'Produk Terbaru';
+      case 'Elektronik':
+        return 'Elektronik';
+      case 'Otomotif':
+        return 'Otomotif';
+      case 'Bayi':
+        return 'Produk Bayi';
+      case 'Pakaian':
+        return 'Pakaian';
+      case 'Makanan':
+        return 'Makanan';
+      default:
+        return 'Katalog Produk';
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.headerText}>Katalog Produk - {filter}</Text>
-
-      <View style={styles.buttonWrapper}>
-        <TouchableOpacity 
-            style={styles.addButton}
-            onPress={() => setIsAddModalVisible(true)} 
-        >
-            <Text style={styles.addButtonText}>➕ Tambah Produk</Text>
-        </TouchableOpacity>
+      <View style={styles.header}>
+        <Text style={styles.headerText}>{getHeaderTitle()}</Text>
+        <Text style={styles.productCount}>{getProductCountText()}</Text>
+        
+        {/* Tombol toggle drawer yang minimalis di header */}
+        {filter === 'Populer' && (
+          <TouchableOpacity 
+            style={styles.headerToggleButton}
+            onPress={handleToggleDrawer}
+          >
+            <Text style={styles.headerToggleText}>☰</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <FlatList
-        data={filteredProducts}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderProductItem}
-        contentContainerStyle={styles.list}
-        numColumns={numColumns}
-        key={numColumns.toString()}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text>Tidak ada produk di kategori ini</Text>
-          </View>
-        }
-      />
+      {filteredProducts.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyStateText}>📦</Text>
+          <Text style={styles.emptyStateTitle}>Tidak ada produk</Text>
+          <Text style={styles.emptyStateSubtitle}>
+            {filter === 'all' 
+              ? 'Belum ada produk yang tersedia' 
+              : `Tidak ada produk dalam kategori ${filter}`
+            }
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          renderItem={renderProductItem}
+          keyExtractor={(item) => item.id.toString()}
+          numColumns={numColumns}
+          contentContainerStyle={styles.listContent}
+          key={numColumns}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
+
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={() => setIsAddModalVisible(true)}
+      >
+        <Text style={styles.addButtonText}>+ Tambah Produk</Text>
+      </TouchableOpacity>
 
       <AddProductModal
         visible={isAddModalVisible}
         onClose={() => setIsAddModalVisible(false)}
-        onSubmit={handleAddProduct}
+        onAddProduct={handleAddProduct}
       />
     </View>
   );
@@ -137,44 +233,80 @@ const ProductCatalogScreen: React.FC<Props> = ({ filter = 'all' }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F7F9FC',
+    backgroundColor: '#F8F9FA',
+    padding: 16,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 16,
+    position: 'relative', // Untuk positioning tombol toggle
   },
   headerText: {
-    fontSize: 22,
-    fontWeight: '700',
-    paddingVertical: 18,
-    paddingHorizontal: 15,
-    backgroundColor: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#007AFF',
     textAlign: 'center',
-    color: '#333',
   },
-  list: {
-    flexGrow: 1,
-    padding: 5,
-    justifyContent: 'space-between',
+  productCount: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
   },
-  buttonWrapper: {
-    padding: 15,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+  headerToggleButton: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    backgroundColor: 'transparent',
+    padding: 8,
   },
-  addButton: {
-      backgroundColor: '#4CAF50',
-      padding: 12,
-      borderRadius: 8,
-      alignItems: 'center',
+  headerToggleText: {
+    color: '#007AFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
-  addButtonText: {
-      color: '#FFFFFF',
-      fontWeight: 'bold',
-      fontSize: 14,
+  listContent: {
+    paddingBottom: 100,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  emptyStateSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 30,
+    right: 30,
+    backgroundColor: '#007AFF',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  addButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });
 

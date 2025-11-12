@@ -2,12 +2,14 @@
 
 // Interface untuk Produk
 export interface Product {
-    id: number;
-    nama: string;
-    harga: number;
-    deskripsi: string;
-    urlGambar: string;
-    kategori?: string; // Optional untuk kompatibilitas
+  id: number;
+  nama: string;
+  harga: number;
+  urlGambar?: string;
+  deskripsi: string;
+  kategori: string;
+  rating?: number;
+  terjual?: number;
 }
 
 // Interface untuk Item dalam Keranjang
@@ -86,9 +88,7 @@ export interface User {
   id: string;
   nama: string;
   email: string;
-  avatar?: string;
 }
-
 // Interface untuk Auth Context
 export interface AuthContextType {
   user: User | null;
