@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 
 const ProfileTabScreen = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, userID } = useAuth();
 
   if (!user) {
     return (
@@ -22,7 +22,6 @@ const ProfileTabScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>👤</Text>
@@ -31,23 +30,44 @@ const ProfileTabScreen = () => {
         <Text style={styles.userEmail}>{user.email}</Text>
       </View>
 
-      {/* Stats */}
-      <View style={styles.stats}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>5</Text>
-          <Text style={styles.statLabel}>Orders</Text>
+      <View style={styles.profileInfo}>
+        <Text style={styles.sectionTitle}>Informasi Akun</Text>
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>User ID:</Text>
+          <Text style={styles.infoValue}>{userID}</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>12</Text>
-          <Text style={styles.statLabel}>Favorites</Text>
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Nama:</Text>
+          <Text style={styles.infoValue}>{user.nama}</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>4.8</Text>
-          <Text style={styles.statLabel}>Rating</Text>
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Email:</Text>
+          <Text style={styles.infoValue}>{user.email}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Text style={styles.infoLabel}>Status:</Text>
+          <Text style={[styles.infoValue, styles.verified]}>✅ Terverifikasi</Text>
         </View>
       </View>
 
-      {/* Logout */}
+      <View style={styles.stats}>
+        <Text style={styles.sectionTitle}>Statistik</Text>
+        <View style={styles.statRow}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>5</Text>
+            <Text style={styles.statLabel}>Orders</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>12</Text>
+            <Text style={styles.statLabel}>Favorites</Text>
+          </View>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>4.8</Text>
+            <Text style={styles.statLabel}>Rating</Text>
+          </View>
+        </View>
+      </View>
+
       <TouchableOpacity style={styles.logoutButton} onPress={logout}>
         <Text style={styles.logoutText}>Logout</Text>
       </TouchableOpacity>
@@ -124,10 +144,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
-  stats: {
-    flexDirection: 'row',
+  profileInfo: {
     backgroundColor: '#FFFFFF',
-    padding: 24,
+    padding: 20,
     borderRadius: 16,
     marginBottom: 20,
     shadowColor: '#007AFF',
@@ -138,8 +157,51 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#007AFF',
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 15,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#333',
+  },
+  verified: {
+    color: '#28a745',
+  },
+  stats: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderRadius: 16,
+    marginBottom: 30,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
   statItem: {
-    flex: 1,
     alignItems: 'center',
   },
   statNumber: {
