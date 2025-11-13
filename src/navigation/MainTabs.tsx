@@ -1,46 +1,71 @@
+// src/navigation/MainTabs.tsx
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+
+// Import screens
 import HomeStack from './HomeStack';
-import ProfileTabScreen from '../screens/ProfileTabScreen';
-import { useCart } from '../context/CartContext';
+import ProductListScreen from '../screens/ProductListScreen'; // NEW
+import CartScreen from '../screens/CartScreen'; // NEW
+import ProfileScreen from '../screens/ProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 
 const MainTabs = () => {
-  const { getTotalItems } = useCart();
-  const cartCount = getTotalItems();
-
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: '#FF4500',
-        tabBarInactiveTintColor: 'gray',
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName: string;
-
-          if (route.name === 'HomeTab') {
-            iconName = focused ? 'house' : 'house';
-          } else if (route.name === 'ProfileTab') {
-            iconName = focused ? 'user' : 'user';
-          } else {
-            iconName = 'circle-info';
-          }
-          
-          return <FontAwesome6 name={iconName as any} size={size} color={color} />;
+      screenOptions={{
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: '#666',
+        tabBarStyle: {
+          backgroundColor: 'white',
+          borderTopWidth: 1,
+          borderTopColor: '#E0E0E0',
         },
-      })}
+      }}
     >
       <Tab.Screen 
-        name="HomeTab" 
-        component={HomeStack} 
-        options={{ title: 'Beranda' }} 
+        name="Home" 
+        component={HomeStack}
+        options={{
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome6 name="house" size={size} color={color} />
+          ),
+        }}
       />
       <Tab.Screen 
-        name="ProfileTab" 
-        component={ProfileTabScreen} 
-        options={{ title: 'Profil' }} 
+        name="ProductList" 
+        component={ProductListScreen}
+        options={{
+          title: 'Produk API',
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome6 name="list" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Cart" 
+        component={CartScreen}
+        options={{
+          title: 'Keranjang',
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome6 name="cart-shopping" size={size} color={color} />
+          ),
+          tabBarBadge: 3, // Demo badge
+        }}
+      />
+      <Tab.Screen 
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          title: 'Profil',
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome6 name="user" size={size} color={color} />
+          ),
+        }}
       />
     </Tab.Navigator>
   );

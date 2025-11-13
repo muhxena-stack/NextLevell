@@ -9,7 +9,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => boolean;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   userID: string;
 }
@@ -24,22 +24,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userID, setUserID] = useState<string>('');
 
-  const login = (email: string, password: string): boolean => {
-    if (email && password) {
-      setUser({
-        id: '1',
-        nama: email.split('@')[0],
-        email: email
-      });
-      setUserID('U123');
-      return true;
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      console.log('🔐 AuthContext login attempt:', { username, password });
+      
+      // Simulasi login sederhana - selalu return success untuk testing
+      if (username && password) {
+        const newUser: User = {
+          id: '1',
+          nama: username,
+          email: `${username}@example.com`
+        };
+        
+        setUser(newUser);
+        setUserID('U123');
+        console.log('✅ AuthContext login success');
+        return true;
+      }
+      
+      console.log('❌ AuthContext login failed - missing credentials');
+      return false;
+    } catch (error) {
+      console.error('❌ AuthContext login error:', error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
     setUser(null);
     setUserID('');
+    console.log('🔓 AuthContext logout');
   };
 
   const value = {
