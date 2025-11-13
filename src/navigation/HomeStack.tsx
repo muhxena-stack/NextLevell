@@ -6,12 +6,16 @@ import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
 import HomeTabs from './HomeTabs';
 import ProductDetailScreen from '../screens/ProductDetailScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
-import { Product } from '../types/types';
+import ProductListScreen from '../screens/ProductListScreen';
+import CartScreen from '../screens/CartScreen';
+import { Product, ApiProduct } from '../types/types'; // Import both types
 
 export type HomeStackParamList = {
   HomeTabs: undefined;
-  ProductDetail: { product: Product };
+  ProductDetail: { product: Product | ApiProduct }; // Accept both types
   Checkout: { product: Product };
+  ProductList: undefined;
+  Cart: undefined;
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -44,10 +48,10 @@ const HomeStack = ({ navigation }: any) => {
         }}
       />
       <Stack.Screen 
-        name="ProductDetail" 
-        component={ProductDetailScreen} 
-        options={({ route }) => ({ 
-          title: route.params.product.nama,
+        name="ProductList" 
+        component={ProductListScreen} 
+        options={{ 
+          title: 'Daftar Produk API',
           headerStyle: { 
             backgroundColor: '#007AFF',
           },
@@ -56,15 +60,43 @@ const HomeStack = ({ navigation }: any) => {
             fontWeight: '600',
           },
           headerShadowVisible: false,
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={() => navigation.toggleDrawer()}
-              style={{ marginRight: 15 }}
-            >
-              <FontAwesome6 name="bars" size={20} color="#fff" />
-            </TouchableOpacity>
-          ),
-        })} 
+        }} 
+      />
+      <Stack.Screen 
+        name="Cart" 
+        component={CartScreen} 
+        options={{ 
+          title: 'Keranjang',
+          headerStyle: { 
+            backgroundColor: '#007AFF',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: { 
+            fontWeight: '600',
+          },
+          headerShadowVisible: false,
+        }} 
+      />
+      <Stack.Screen 
+        name="ProductDetail" 
+        component={ProductDetailScreen} 
+        options={({ route }) => { 
+          // Handle both Product and ApiProduct types
+          const product = route.params.product;
+          const title = 'title' in product ? product.title : product.nama;
+          
+          return {
+            title: title || 'Detail Produk',
+            headerStyle: { 
+              backgroundColor: '#007AFF',
+            },
+            headerTintColor: '#fff',
+            headerTitleStyle: { 
+              fontWeight: '600',
+            },
+            headerShadowVisible: false,
+          };
+        }} 
       />
       <Stack.Screen 
         name="Checkout" 
@@ -80,14 +112,6 @@ const HomeStack = ({ navigation }: any) => {
           },
           headerShadowVisible: false,
           presentation: 'modal',
-          headerLeft: () => (
-            <TouchableOpacity 
-              onPress={() => navigation.toggleDrawer()}
-              style={{ marginRight: 15 }}
-            >
-              <FontAwesome6 name="bars" size={20} color="#fff" />
-            </TouchableOpacity>
-          ),
         }} 
       />
     </Stack.Navigator>
