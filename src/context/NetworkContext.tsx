@@ -1,10 +1,12 @@
-// src/context/NetworkContext.tsx
+// src/context/NetworkContext.tsx - UPDATE dengan global state
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { NetworkStatus } from '../types/types';
 
 interface NetworkContextType extends NetworkStatus {
   refreshNetworkStatus: () => void;
+  showOfflineBanner: boolean;
+  setShowOfflineBanner: (show: boolean) => void;
 }
 
 const NetworkContext = createContext<NetworkContextType | undefined>(undefined);
@@ -21,6 +23,8 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
     isOnline: false,
   });
 
+  const [showOfflineBanner, setShowOfflineBanner] = useState(false);
+
   const updateNetworkState = (state: any) => {
     const newState: NetworkStatus = {
       isConnected: state.isConnected,
@@ -30,6 +34,15 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
     };
     
     setNetworkState(newState);
+    
+    // ✅ Handle offline/online banner visibility
+    if (!newState.isOnline && !showOfflineBanner) {
+      setShowOfflineBanner(true);
+      console.log('📶 Koneksi terputus. Menggunakan mode offline.');
+    } else if (newState.isOnline && showOfflineBanner) {
+      setShowOfflineBanner(false);
+      console.log('📶 Koneksi pulih. Melanjutkan operasi.');
+    }
     
     // Log network changes for debugging
     console.log('🌐 Network State Changed:', newState);
@@ -60,6 +73,8 @@ export const NetworkProvider: React.FC<NetworkProviderProps> = ({ children }) =>
   const value: NetworkContextType = {
     ...networkState,
     refreshNetworkStatus,
+    showOfflineBanner,
+    setShowOfflineBanner,
   };
 
   return (

@@ -1,3 +1,4 @@
+// src/api/apiClient.ts - UPDATE dengan error interceptor
 import axios from 'axios';
 
 export const apiClient = axios.create({
@@ -9,6 +10,7 @@ export const apiClient = axios.create({
   },
 });
 
+// ✅ Request Interceptor
 apiClient.interceptors.request.use(
   (config) => {
     config.headers['X-Client-Platform'] = 'React-Native';
@@ -22,8 +24,10 @@ apiClient.interceptors.request.use(
   }
 );
 
+// ✅ Response Interceptor untuk handle 400 errors
 apiClient.interceptors.response.use(
   (response) => {
+    // Handle successful login response
     if (response.config.url?.includes('/auth/login') && response.status === 200) {
       return {
         ...response,
@@ -38,6 +42,30 @@ apiClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    // ✅ Handle 400 Bad Request (Validation Errors)
+    if (error.response?.status === 400) {
+      const validationErrors = error.response.data?.errors;
+      
+      if (validationErrors) {
+        console.error('❌ Validation Errors:', validationErrors);
+        
+        // Transform error untuk field-specific handling
+        const fieldErrors: Record<string, string> = {};
+        
+        Object.keys(validationErrors).forEach(field => {
+          fieldErrors[field] = validationErrors[field];
+        });
+        
+        // Reject dengan structured error
+        return Promise.reject({
+          ...error,
+          isValidationError: true,
+          fieldErrors: fieldErrors
+        });
+      }
+    }
+    
+    // Handle other errors
     console.error('❌ Response Interceptor Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
