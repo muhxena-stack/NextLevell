@@ -1,5 +1,5 @@
-// src/screens/ProductListScreen.tsx
-import React, { useState, useEffect } from 'react';
+// src/screens/ProductListScreen.tsx - PERBAIKAN NodeJS error
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,10 +29,18 @@ const ProductListScreen: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // ✅ State untuk retry logic
+  const [retryCount, setRetryCount] = useState(0);
+  const [maxRetries] = useState(3);
+  const [isPermanentError, setIsPermanentError] = useState(false);
+  
+  // ✅ PERBAIKAN: Gunany number | null instead of NodeJS.Timeout
+  const retryTimeoutRef = useRef<number | null>(null);
 
-  // Fetch products dengan Fetch API + AbortController (Soal a)
-  const fetchProducts = async () => {
-    // Validasi koneksi internet (Soal b)
+  // ✅ Fungsi fetch dengan retry logic
+  const fetchProducts = async (isRetry: boolean = false) => {
+    // Validasi koneksi internet
     if (!isOnline || !isInternetReachable) {
       setError('Anda sedang Offline. Cek koneksi Anda.');
       setLoading(false);
@@ -41,32 +49,65 @@ const ProductListScreen: React.FC = () => {
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 7000); // 7 detik timeout (Soal a)
+    
+    // ✅ PERBAIKAN: Gunany number untuk timeout
+    const timeoutId = setTimeout(() => controller.abort(), 7000) as unknown as number;
 
     try {
       setError(null);
+      setIsPermanentError(false);
+      
       const data = await productService.getProductsWithFetch(controller.signal);
       console.log('📦 Products loaded:', data.length);
-      if (data.length > 0) {
-        console.log('🖼️ First product image:', data[0].thumbnail);
-      }
+      
       setProducts(data);
+      setRetryCount(0); // Reset retry count pada success
+      
     } catch (err: any) {
       if (err.message === 'Request cancelled') {
         console.log('✅ Request cancelled properly');
+        return;
+      }
+
+      console.error(`❌ Fetch attempt ${retryCount + 1} failed:`, err.message);
+      
+      // ✅ Exponential Backoff Retry Logic
+      if (retryCount < maxRetries - 1 && !isRetry) {
+        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+        console.log(`⏳ Retrying in ${delay}ms... (Attempt ${retryCount + 1}/${maxRetries})`);
+        
+        setError(`Gagal memuat produk. Mencoba lagi dalam ${delay/1000} detik...`);
+        
+        // ✅ PERBAIKAN: Gunany setTimeout dengan type number
+        retryTimeoutRef.current = setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+          fetchProducts(true);
+        }, delay) as unknown as number;
+        
       } else {
-        setError(err.message || 'Gagal memuat produk');
-        Alert.alert('Error', 'Gagal memuat data produk');
+        // ✅ Permanent error setelah max retries
+        setIsPermanentError(true);
+        setError('Gagal memuat produk setelah beberapa percobaan. Silakan coba lagi nanti.');
+        Alert.alert(
+          'Koneksi Bermasalah', 
+          'Tidak dapat memuat data produk. Periksa koneksi internet Anda.',
+          [{ text: 'OK' }]
+        );
       }
     } finally {
       clearTimeout(timeoutId);
-      setLoading(false);
-      setRefreshing(false);
+      if (!isRetry) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
 
     return () => {
       controller.abort();
       clearTimeout(timeoutId);
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
     };
   };
 
@@ -79,19 +120,30 @@ const ProductListScreen: React.FC = () => {
 
     loadData();
 
-    // Cleanup function (Soal a)
     return () => {
       if (cleanup) cleanup();
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
     };
-  }, [isOnline, isInternetReachable]);
+  }, [isOnline, isInternetReachable, retryCount]);
 
   const onRefresh = () => {
     setRefreshing(true);
+    setRetryCount(0);
+    setIsPermanentError(false);
+    fetchProducts();
+  };
+
+  const handleManualRetry = () => {
+    setLoading(true);
+    setRetryCount(0);
+    setIsPermanentError(false);
+    setError(null);
     fetchProducts();
   };
 
   const handleProductPress = (product: ApiProduct) => {
-    // Convert ApiProduct to Product sebelum navigate ke detail screen
     const convertedProduct = convertApiProductToProduct(product);
     navigation.navigate('ProductDetail', { product: convertedProduct });
   };
@@ -101,7 +153,6 @@ const ProductListScreen: React.FC = () => {
       style={styles.productItem}
       onPress={() => handleProductPress(item)}
     >
-      {/* Product Image */}
       <View style={styles.imageContainer}>
         {item.thumbnail ? (
           <Image 
@@ -118,7 +169,6 @@ const ProductListScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Product Details */}
       <View style={styles.productDetails}>
         <Text style={styles.productName} numberOfLines={2}>
           {item.title}
@@ -150,6 +200,21 @@ const ProductListScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
+  // ✅ Loading state dengan retry info
+  if (loading && retryCount > 0) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>
+          Memuat produk... (Percobaan {retryCount + 1}/{maxRetries})
+        </Text>
+        <Text style={styles.retryInfo}>
+          Menunggu {Math.pow(2, retryCount)} detik sebelum mencoba lagi
+        </Text>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -159,13 +224,32 @@ const ProductListScreen: React.FC = () => {
     );
   }
 
-  if (error) {
+  // ✅ Permanent error state dengan manual retry button
+  if (isPermanentError) {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>📶</Text>
         <Text style={styles.errorTitle}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={fetchProducts}>
-          <Text style={styles.retryText}>Coba Lagi</Text>
+        <Text style={styles.retryInfo}>
+          Sudah mencoba {maxRetries} kali dengan exponential backoff
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleManualRetry}>
+          <Text style={styles.retryText}>Coba Lagi Manual</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (error && !isPermanentError) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>📶</Text>
+        <Text style={styles.errorTitle}>{error}</Text>
+        <Text style={styles.retryInfo}>
+          Percobaan {retryCount + 1}/{maxRetries}
+        </Text>
+        <TouchableOpacity style={styles.retryButton} onPress={handleManualRetry}>
+          <Text style={styles.retryText}>Coba Sekarang</Text>
         </TouchableOpacity>
       </View>
     );
@@ -173,13 +257,14 @@ const ProductListScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Connection Type Display (Soal b) */}
+      {/* Connection Type Display dengan retry info */}
       <View style={styles.connectionInfo}>
         <Text style={styles.connectionText}>
           📶 Koneksi: {connectionType === 'wifi' ? 'WiFi' : 
                       connectionType === 'cellular' ? 'Cellular' : 
                       connectionType} • 
           Produk: {products.length} items
+          {retryCount > 0 && ` • Retry: ${retryCount}/${maxRetries}`}
         </Text>
       </View>
 
@@ -196,7 +281,14 @@ const ProductListScreen: React.FC = () => {
           />
         }
         ListHeaderComponent={
-          <Text style={styles.headerTitle}>Daftar Produk API ({products.length})</Text>
+          <View>
+            <Text style={styles.headerTitle}>Daftar Produk API ({products.length})</Text>
+            {retryCount > 0 && (
+              <Text style={styles.retryHeader}>
+                🔄 Auto-retry: {retryCount}/{maxRetries} attempts
+              </Text>
+            )}
+          </View>
         }
         showsVerticalScrollIndicator={false}
       />
@@ -204,6 +296,7 @@ const ProductListScreen: React.FC = () => {
   );
 };
 
+// ✅ Styles tetap sama
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -234,8 +327,15 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  retryHeader: {
+    fontSize: 12,
+    color: '#FFA500',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontStyle: 'italic',
   },
   productItem: {
     backgroundColor: 'white',
@@ -340,6 +440,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666',
+  },
+  retryInfo: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginBottom: 16,
   },
   errorText: {
     fontSize: 48,

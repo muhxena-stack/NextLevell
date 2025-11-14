@@ -1,4 +1,4 @@
-// src/screens/ProductCatalogScreen.tsx (alternatif lebih clean)
+// src/screens/ProductCatalogScreen.tsx - UPDATE dengan network awareness
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -18,6 +18,7 @@ import AddProductModal from '../components/AddProductModal';
 import { initialProducts } from '../data/initialProducts';
 import { Product } from '../types/types';
 import { HomeStackParamList } from '../navigation/HomeStack';
+import { useNetwork } from '../context/NetworkContext'; // ✅ Import baru
 
 type ProductCatalogScreenNavigationProp = NativeStackNavigationProp<HomeStackParamList, 'HomeTabs'>;
 
@@ -29,6 +30,8 @@ const ProductCatalogScreen: React.FC = () => {
   const { width, height } = useWindowDimensions();
   const navigation = useNavigation<ProductCatalogScreenNavigationProp>();
   const route = useRoute();
+  const { isOnline } = useNetwork(); // ✅ Gunakan network context
+  
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [isAddModalVisible, setIsAddModalVisible] = useState(false);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -62,7 +65,6 @@ const ProductCatalogScreen: React.FC = () => {
     }, [filter, navigation])
   );
 
-  // Tugas 9: Toggle Drawer dari Child
   const handleToggleDrawer = () => {
     const drawerParent = navigation.getParent()?.getParent();
     const drawerNavigation = drawerParent as DrawerNavigationProp<any> | null;
@@ -180,6 +182,13 @@ const ProductCatalogScreen: React.FC = () => {
         <Text style={styles.headerText}>{getHeaderTitle()}</Text>
         <Text style={styles.productCount}>{getProductCountText()}</Text>
         
+        {/* ✅ Tampilkan status offline di header */}
+        {!isOnline && (
+          <View style={styles.offlineBadge}>
+            <Text style={styles.offlineBadgeText}>📶 OFFLINE</Text>
+          </View>
+        )}
+        
         {/* Tombol toggle drawer yang minimalis di header */}
         {filter === 'Populer' && (
           <TouchableOpacity 
@@ -201,6 +210,11 @@ const ProductCatalogScreen: React.FC = () => {
               : `Tidak ada produk dalam kategori ${filter}`
             }
           </Text>
+          {!isOnline && (
+            <Text style={styles.offlineHint}>
+              Beberapa fitur mungkin terbatas dalam mode offline
+            </Text>
+          )}
         </View>
       ) : (
         <FlatList
@@ -215,10 +229,16 @@ const ProductCatalogScreen: React.FC = () => {
       )}
 
       <TouchableOpacity 
-        style={styles.addButton}
+        style={[
+          styles.addButton,
+          !isOnline && styles.disabledButton // ✅ Disable button saat offline
+        ]}
         onPress={() => setIsAddModalVisible(true)}
+        disabled={!isOnline}
       >
-        <Text style={styles.addButtonText}>+ Tambah Produk</Text>
+        <Text style={styles.addButtonText}>
+          {!isOnline ? '📶 Mode Offline' : '+ Tambah Produk'}
+        </Text>
       </TouchableOpacity>
 
       <AddProductModal
@@ -230,6 +250,7 @@ const ProductCatalogScreen: React.FC = () => {
   );
 };
 
+// ✅ Tambahkan styles baru
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -239,7 +260,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 16,
-    position: 'relative', // Untuk positioning tombol toggle
+    position: 'relative',
   },
   headerText: {
     fontSize: 20,
@@ -251,6 +272,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 4,
+  },
+  offlineBadge: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 4,
+  },
+  offlineBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   headerToggleButton: {
     position: 'absolute',
@@ -289,6 +322,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
+  offlineHint: {
+    fontSize: 12,
+    color: '#FF6B6B',
+    textAlign: 'center',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   addButton: {
     position: 'absolute',
     bottom: 30,
@@ -302,6 +342,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
+  },
+  disabledButton: {
+    backgroundColor: '#6C757D',
+    opacity: 0.7,
   },
   addButtonText: {
     color: 'white',

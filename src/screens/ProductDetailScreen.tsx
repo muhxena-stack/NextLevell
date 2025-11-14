@@ -1,33 +1,112 @@
-// src/screens/ProductDetailScreen.tsx
-import React, { useState, useEffect } from 'react';
+// src/screens/ProductDetailScreen.tsx - UPDATE dengan graceful degradation
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, SafeAreaView,
-  TouchableOpacity, Alert, useWindowDimensions,
-  Dimensions, Image
+  TouchableOpacity, useWindowDimensions,
+  Dimensions, Image, Alert, ActivityIndicator
 } from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { StackActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Product } from '../types/types';
+import { Product, ApiProduct } from '../types/types';
 import { useCart } from '../context/CartContext';
 import { HomeStackParamList } from '../navigation/HomeStack';
+import {
+  convertApiProductToProduct,
+  isApiProduct,
+  getProductName,
+  getProductImage,
+  getProductPrice,
+  getProductDescription,
+  getProductCategory,
+  getProductRating,
+  formatPrice
+} from '../utils/productUtils';
+import Toast from 'react-native-toast-message'; // ✅ Import Toast
 
-// Define route prop types
 type DetailScreenRouteProp = RouteProp<HomeStackParamList, 'ProductDetail'>;
 
-// Define navigation prop types
 type ProductDetailScreenNavigationProp = NativeStackNavigationProp<
   HomeStackParamList,
   'ProductDetail'
 >;
 
+// ✅ Fallback data untuk graceful degradation
+const FALLBACK_PRODUCT: Product = {
+  id: -1,
+  nama: 'Produk Tidak Tersedia',
+  harga: 0,
+  deskripsi: 'Maaf, data produk tidak dapat dimuat saat ini. Silakan coba lagi nanti.',
+  kategori: 'Umum',
+  urlGambar: 'https://via.placeholder.com/300x300/FF6B6B/FFFFFF?text=Gambar+Tidak+Tersedia',
+  rating: 0,
+  terjual: 0
+};
+
 const ProductDetailScreen: React.FC = () => {
   const route = useRoute<DetailScreenRouteProp>();
   const navigation = useNavigation<ProductDetailScreenNavigationProp>();
   const { addToCart } = useCart();
-  const product = route.params.product;
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState<Product>(FALLBACK_PRODUCT);
+
   const { width, height } = useWindowDimensions();
   const [isLandscape, setIsLandscape] = useState(width > height);
+
+  // ✅ Effect untuk handle product data dengan error handling
+  useEffect(() => {
+    const initializeProduct = async () => {
+      const rawProduct = route.params.product;
+      
+      try {
+        setIsLoading(true);
+        setHasError(false);
+
+        // Simulasi API call failure untuk demo
+        // Hapus kode ini di production
+        const shouldFail = Math.random() < 0.3; // 30% chance untuk gagal (demo saja)
+        if (shouldFail) {
+          throw new Error('Simulated API failure');
+        }
+
+        const product = isApiProduct(rawProduct) 
+          ? convertApiProductToProduct(rawProduct)
+          : rawProduct as Product;
+
+        setCurrentProduct(product);
+        
+      } catch (error: any) {
+        console.error('❌ Error loading product:', error);
+        
+        // ✅ Log status code error terpisah
+        if (error.response?.status === 404) {
+          console.error('📋 Status Code 404: Product not found');
+        } else if (error.response?.status === 500) {
+          console.error('📋 Status Code 500: Internal server error');
+        } else {
+          console.error('📋 Network error:', error.message);
+        }
+        
+        setHasError(true);
+        setCurrentProduct(FALLBACK_PRODUCT);
+        
+        // ✅ Tampilkan Toast notification
+        Toast.show({
+          type: 'error',
+          text1: 'Gagal memuat data terbaru',
+          text2: 'Menampilkan versi arsip',
+          position: 'bottom',
+          visibilityTime: 4000,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeProduct();
+  }, [route.params.product]);
 
   useEffect(() => {
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
@@ -54,14 +133,30 @@ const ProductDetailScreen: React.FC = () => {
   };
 
   const handleAddToCart = () => {
-    addToCart(product);
-    Alert.alert('Berhasil!', `${product.nama} telah ditambahkan ke keranjang`);
+    addToCart(currentProduct);
+    Alert.alert('Berhasil!', `${currentProduct.nama} telah ditambahkan ke keranjang`);
   };
 
   const handleCheckout = () => {
-    // Sekarang TypeScript tahu bahwa 'Checkout' ada di HomeStackParamList
-    navigation.navigate('Checkout', { product });
+    navigation.navigate('Checkout', { product: currentProduct });
   };
+
+  // Get product details menggunakan currentProduct
+  const productImage = getProductImage(currentProduct);
+  const productName = getProductName(currentProduct);
+  const productPrice = getProductPrice(currentProduct);
+  const productDescription = getProductDescription(currentProduct);
+  const productCategory = getProductCategory(currentProduct);
+  const productRating = getProductRating(currentProduct);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Memuat detail produk...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
@@ -69,13 +164,22 @@ const ProductDetailScreen: React.FC = () => {
         styles.scrollContent,
         isLandscape && styles.landscapeScrollContent
       ]}>
+        {/* ✅ Error Indicator */}
+        {hasError && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>
+              ⚠️ Menampilkan data cadangan
+            </Text>
+          </View>
+        )}
+
         <View style={[
           styles.imageContainer,
           isLandscape && styles.landscapeImageContainer
         ]}>
-          {product.urlGambar ? (
+          {productImage ? (
             <Image 
-              source={{ uri: product.urlGambar }} 
+              source={{ uri: productImage }} 
               style={styles.productImage}
               resizeMode="contain"
             />
@@ -92,14 +196,51 @@ const ProductDetailScreen: React.FC = () => {
           isLandscape && styles.landscapeDetailsContainer
         ]}>
           <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{product.kategori}</Text>
+            <Text style={styles.categoryText}>{productCategory}</Text>
           </View>
           
-          <Text style={styles.name}>{product.nama}</Text>
-          <Text style={styles.price}>Rp {product.harga.toLocaleString('id-ID')}</Text>
+          <Text style={styles.name}>{productName}</Text>
+          <Text style={styles.price}>{formatPrice(productPrice)}</Text>
           
           <Text style={styles.sectionTitle}>Deskripsi Produk</Text>
-          <Text style={styles.descriptionText}>{product.deskripsi}</Text>
+          <Text style={styles.descriptionText}>{productDescription}</Text>
+
+          {productRating > 0 && (
+            <View style={styles.ratingContainer}>
+              <Text style={styles.sectionTitle}>Rating</Text>
+              <Text style={styles.ratingText}>⭐ {productRating}/5</Text>
+            </View>
+          )}
+
+          {currentProduct.terjual && currentProduct.terjual > 0 && (
+            <View style={styles.soldContainer}>
+              <Text style={styles.sectionTitle}>Terjual</Text>
+              <Text style={styles.soldText}>{currentProduct.terjual} items</Text>
+            </View>
+          )}
+
+          {/* Tampilkan info API hanya jika bukan fallback product */}
+          {!hasError && isApiProduct(route.params.product) && (
+            <View style={styles.apiInfoContainer}>
+              <Text style={styles.sectionTitle}>Info Tambahan</Text>
+              <View style={styles.apiInfoRow}>
+                <Text style={styles.apiInfoLabel}>Brand:</Text>
+                <Text style={styles.apiInfoValue}>{route.params.product.brand}</Text>
+              </View>
+              <View style={styles.apiInfoRow}>
+                <Text style={styles.apiInfoLabel}>Stok:</Text>
+                <Text style={styles.apiInfoValue}>{route.params.product.stock} units</Text>
+              </View>
+              {route.params.product.discountPercentage > 0 && (
+                <View style={styles.apiInfoRow}>
+                  <Text style={styles.apiInfoLabel}>Diskon:</Text>
+                  <Text style={styles.discountText}>
+                    {route.params.product.discountPercentage}% OFF
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
 
           <View style={styles.actionButtons}>
             <TouchableOpacity 
@@ -128,17 +269,56 @@ const ProductDetailScreen: React.FC = () => {
 
       <View style={styles.footer}>
         <TouchableOpacity 
-          style={styles.addToCartButton}
+          style={[
+            styles.addToCartButton,
+            hasError && styles.disabledButton // ✅ Disable jika error
+          ]}
           onPress={handleAddToCart}
+          disabled={hasError}
         >
-          <Text style={styles.addToCartText}>+ Tambah ke Keranjang</Text>
+          <Text style={styles.addToCartText}>
+            {hasError ? '⏸️ Tambah ke Keranjang (Sementara Dinonaktifkan)' : '+ Tambah ke Keranjang'}
+          </Text>
         </TouchableOpacity>
       </View>
+
+      {/* ✅ Toast Component */}
+      <Toast />
     </SafeAreaView>
   );
 };
 
+// ✅ Tambahkan styles baru
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorBanner: {
+    backgroundColor: '#FFF3CD',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFC107',
+  },
+  errorBannerText: {
+    color: '#856404',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  disabledButton: {
+    backgroundColor: '#6C757D',
+    opacity: 0.7,
+  },
+  // ... (styles yang sudah ada sebelumnya tetap sama)
   scrollContent: { 
     padding: 25, 
     alignItems: 'flex-start', 
@@ -224,6 +404,50 @@ const styles = StyleSheet.create({
     color: '#444', 
     textAlign: 'justify', 
     lineHeight: 24 
+  },
+  ratingContainer: {
+    marginTop: 15,
+  },
+  ratingText: {
+    fontSize: 16,
+    color: '#FFA500',
+    fontWeight: '600',
+  },
+  soldContainer: {
+    marginTop: 10,
+  },
+  soldText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  apiInfoContainer: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  apiInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  apiInfoLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
+  },
+  apiInfoValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  discountText: {
+    fontSize: 14,
+    color: '#FF4500',
+    fontWeight: 'bold',
   },
   actionButtons: { 
     marginTop: 30, 
