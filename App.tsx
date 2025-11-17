@@ -1,5 +1,5 @@
-// App.tsx - UPDATE dengan OfflineBanner
-import React, { useState } from 'react';
+// App.tsx - UPDATE dengan guard flow
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -7,13 +7,13 @@ import { CartProvider } from './src/context/CartContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NetworkProvider } from './src/context/NetworkContext';
 import NetworkStatusBar from './src/components/NetworkStatusBar';
-import OfflineBanner from './src/components/OfflineBanner'; // ✅ Import baru
+import OfflineBanner from './src/components/OfflineBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import LoginScreen from './src/screens/LoginScreen';
 import MainTabs from './src/navigation/MainTabs';
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import { Text, View, StatusBar } from 'react-native';
+import { View, StatusBar, ActivityIndicator, Text } from 'react-native';
 
 const Drawer = createDrawerNavigator();
 const Stack = createNativeStackNavigator();
@@ -25,8 +25,16 @@ const AnalyticsScreen = () => (
   </View>
 );
 
+// ✅ Loading Component
+const LoadingScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
+    <ActivityIndicator size="large" color="#007AFF" />
+    <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>Memuat aplikasi...</Text>
+  </View>
+);
+
 const AppNavigator = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth(); // ✅ Gunakan loading state
   const [analyticsLog, setAnalyticsLog] = useState<string[]>([]);
   const [errorBoundaryKey, setErrorBoundaryKey] = useState(0);
 
@@ -59,15 +67,20 @@ const AppNavigator = () => {
     console.log('🔄 ErrorBoundary direset');
   };
 
+  // ✅ Tugas a: Tampilkan loading screen selama check auth
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <>
       <NetworkStatusBar />
-      {/* ✅ Tambahkan OfflineBanner di sini */}
       <OfflineBanner />
       <NavigationContainer onStateChange={handleStateChange}>
         <ErrorBoundary key={errorBoundaryKey} onReset={handleErrorBoundaryReset}>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             {user ? (
+              // ✅ Tugas a: User sudah login -> langsung ke Main
               <Stack.Screen name="Main">
                 {() => (
                   <Drawer.Navigator
@@ -113,6 +126,7 @@ const AppNavigator = () => {
                 )}
               </Stack.Screen>
             ) : (
+              // ✅ Tugas a: User belum login -> ke Login screen
               <Stack.Screen name="Login" component={LoginScreen} />
             )}
           </Stack.Navigator>
