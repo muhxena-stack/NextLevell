@@ -1,5 +1,6 @@
-// src/api/apiClient.ts - UPDATE dengan error interceptor
+// src/api/apiClient.ts - UPDATED
 import axios from 'axios';
+import { apiKeyManager } from '../security/apiKeyManager';
 
 export const apiClient = axios.create({
   baseURL: 'https://dummyjson.com', 
@@ -10,24 +11,54 @@ export const apiClient = axios.create({
   },
 });
 
-// ✅ Request Interceptor
+// ✅ Initialize API Key Manager
+apiKeyManager.initialize().then(success => {
+  console.log('🔑 API Key Manager initialized:', success);
+});
+
+// Request Interceptor
 apiClient.interceptors.request.use(
-  (config) => {
-    config.headers['X-Client-Platform'] = 'React-Native';
-    
-    console.log(`🚀 ${config.method?.toUpperCase()} Request to: ${config.url}`);
-    return config;
+  async (config) => {
+    try {
+      config.headers['X-Client-Platform'] = 'React-Native';
+      
+      // ✅ Tugas e: Tambahkan API Key dari Keychain ke header
+      const apiKey = await apiKeyManager.getApiKey();
+      
+      if (apiKey) {
+        config.headers['X-API-Key'] = apiKey;
+        console.log('🔑 API Key added to request');
+      } else {
+        // ✅ Tugas e: Handle case dimana API Key tidak ditemukan
+        console.error('❌ API Key not found in Keychain');
+        throw new Error('UNAUTHORIZED_NO_API_KEY');
+      }
+
+      console.log(`🚀 ${config.method?.toUpperCase()} Request to: ${config.url}`);
+      return config;
+    } catch (error: any) {
+      if (error.message === 'UNAUTHORIZED_NO_API_KEY') {
+        // Simulasi 401 error
+        return Promise.reject({
+          response: {
+            status: 401,
+            data: { message: 'Unauthorized - API Key missing' }
+          }
+        });
+      }
+      console.error('❌ Request Interceptor Error:', error);
+      return Promise.reject(error);
+    }
   },
   (error) => {
-    console.error('❌ Request Interceptor Error:', error);
+    console.error('❌ Request Interceptor Setup Error:', error);
     return Promise.reject(error);
   }
 );
 
-// ✅ Response Interceptor untuk handle 400 errors
+// Response Interceptor tetap sama...
 apiClient.interceptors.response.use(
   (response) => {
-    // Handle successful login response
     if (response.config.url?.includes('/auth/login') && response.status === 200) {
       return {
         ...response,
@@ -38,34 +69,9 @@ apiClient.interceptors.response.use(
         }
       };
     }
-    
     return response;
   },
   (error) => {
-    // ✅ Handle 400 Bad Request (Validation Errors)
-    if (error.response?.status === 400) {
-      const validationErrors = error.response.data?.errors;
-      
-      if (validationErrors) {
-        console.error('❌ Validation Errors:', validationErrors);
-        
-        // Transform error untuk field-specific handling
-        const fieldErrors: Record<string, string> = {};
-        
-        Object.keys(validationErrors).forEach(field => {
-          fieldErrors[field] = validationErrors[field];
-        });
-        
-        // Reject dengan structured error
-        return Promise.reject({
-          ...error,
-          isValidationError: true,
-          fieldErrors: fieldErrors
-        });
-      }
-    }
-    
-    // Handle other errors
     console.error('❌ Response Interceptor Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
