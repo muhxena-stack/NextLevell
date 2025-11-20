@@ -1,4 +1,4 @@
-// src/storage/storageService.ts - COMPLETE FIX
+// src/storage/storageService.ts - UPDATED VERSION
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StorageService } from './types';
 
@@ -47,6 +47,21 @@ class StorageServiceImpl implements StorageService {
       return results.map(([key, value]) => [key, value]);
     } catch (error) {
       console.error('❌ Error in multiGet:', error);
+      throw error;
+    }
+  }
+
+  // ✅ ADD: multiSet method
+  async multiSet(keyValuePairs: [string, string][]): Promise<void> {
+    try {
+      await AsyncStorage.multiSet(keyValuePairs);
+      console.log(`💾 MultiSet for ${keyValuePairs.length} key-value pairs`);
+    } catch (error: any) {
+      if (error?.message?.includes('QuotaExceededError') || error?.message?.includes('Database is full')) {
+        console.error('❌ Storage quota exceeded during multiSet:', error);
+        throw new Error('STORAGE_QUOTA_EXCEEDED');
+      }
+      console.error('❌ Error in multiSet:', error);
       throw error;
     }
   }

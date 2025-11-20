@@ -1,4 +1,4 @@
-// src/context/CartContext.tsx - UPDATE
+// src/context/CartContext.tsx - UPDATED VERSION
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Product } from '../types/types';
 import { cartStorage } from '../storage/cartStorage';
@@ -10,12 +10,13 @@ interface CartItem {
 
 interface CartContextType {
   cartItems: CartItem[];
-  addToCart: (product: Product) => Promise<void>; // ✅ Diubah jadi async
-  removeFromCart: (productId: number) => Promise<void>; // ✅ Diubah jadi async
-  clearCart: () => Promise<void>; // ✅ Diubah jadi async
+  addToCart: (product: Product) => Promise<void>;
+  removeFromCart: (productId: number) => Promise<void>;
+  updateCartItemQuantity: (productId: number, quantity: number) => Promise<void>; // ✅ ADD THIS
+  clearCart: () => Promise<void>;
   getTotalItems: () => number;
   getTotalPrice: () => number;
-  isStorageFull: boolean; // ✅ State untuk handle quota exceeded
+  isStorageFull: boolean;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -26,9 +27,9 @@ interface CartProviderProps {
 
 export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isStorageFull, setIsStorageFull] = useState(false); // ✅ State untuk storage full
+  const [isStorageFull, setIsStorageFull] = useState(false);
 
-  // ✅ Load cart items dari storage saat app start
+  // Load cart items dari storage saat app start
   useEffect(() => {
     const loadCartItems = async () => {
       try {
@@ -43,7 +44,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     loadCartItems();
   }, []);
 
-  // ✅ Helper untuk save ke storage
+  // Helper untuk save ke storage
   const saveToStorage = async (items: CartItem[]) => {
     try {
       setIsStorageFull(false);
@@ -52,7 +53,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       if (error.message === 'STORAGE_QUOTA_EXCEEDED' || error.message === 'CART_STORAGE_FULL') {
         console.error('🛒 Storage full - cannot save cart items');
         setIsStorageFull(true);
-        // Bisa tambahkan user notification di sini
       } else {
         throw error;
       }
@@ -74,9 +74,26 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         newItems = [...prevItems, { product, quantity: 1 }];
       }
 
-      // ✅ Tugas d: Save ke storage (async)
       saveToStorage(newItems);
+      return newItems;
+    });
+  };
+
+  // ✅ ADD THIS METHOD: Update quantity for specific product
+  const updateCartItemQuantity = async (productId: number, quantity: number) => {
+    if (quantity < 1) {
+      await removeFromCart(productId);
+      return;
+    }
+
+    setCartItems(prevItems => {
+      const newItems = prevItems.map(item =>
+        item.product.id === productId
+          ? { ...item, quantity }
+          : item
+      );
       
+      saveToStorage(newItems);
       return newItems;
     });
   };
@@ -84,18 +101,13 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const removeFromCart = async (productId: number) => {
     setCartItems(prevItems => {
       const newItems = prevItems.filter(item => item.product.id !== productId);
-      
-      // ✅ Tugas d: Save ke storage (async)
       saveToStorage(newItems);
-      
       return newItems;
     });
   };
 
   const clearCart = async () => {
     setCartItems([]);
-    
-    // ✅ Tugas d: Clear dari storage
     try {
       await cartStorage.clearCart();
     } catch (error) {
@@ -111,14 +123,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     return cartItems.reduce((total, item) => total + (item.product.harga * item.quantity), 0);
   };
 
-  const value = {
+  const value: CartContextType = {
     cartItems,
     addToCart,
     removeFromCart,
+    updateCartItemQuantity, // ✅ ADD THIS
     clearCart,
     getTotalItems,
     getTotalPrice,
-    isStorageFull // ✅ Expose storage full state
+    isStorageFull
   };
 
   return (
