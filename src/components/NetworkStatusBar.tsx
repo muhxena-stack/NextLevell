@@ -7,7 +7,7 @@ const NetworkStatusBar: React.FC = () => {
   const { isOnline, connectionType } = useNetwork();
 
   if (isOnline === null) {
-    return null; // Don't show anything while initializing
+    return null; 
   }
 
   const getStatusColor = () => {

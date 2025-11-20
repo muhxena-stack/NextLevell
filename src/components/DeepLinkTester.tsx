@@ -1,430 +1,473 @@
-// src/components/DeepLinkTester.tsx - FIXED VERSION
+// src/components/DeepLinkTester.tsx - FIXED EXPORT VERSION
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView, Platform } from 'react-native';
-import { deepLinkingService } from '../services/deepLinkingService';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Platform
+} from 'react-native';
+import { deepLinkingService, DeepLinkData } from '../services/deepLinkingService';
+import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
+// ✅ GUNAKAN DEFAULT EXPORT
 const DeepLinkTester: React.FC = () => {
-  const [testResults, setTestResults] = useState<Array<{name: string, success: boolean, url: string, timestamp: Date}>>([]);
-  const [deepLinkStatus, setDeepLinkStatus] = useState<any>(null);
+  const [testUrl, setTestUrl] = useState('ecommerceapp://product/123');
+  const [logs, setLogs] = useState<string[]>([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const { addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
 
-  // ✅ SOAL 5: Get deep linking status
   useEffect(() => {
-    const status = deepLinkingService.getStatus();
-    setDeepLinkStatus(status);
+    // Initialize deep linking service
+    deepLinkingService.initialize().then(() => {
+      setIsConnected(true);
+      addLog('✅ Deep Linking Service Connected');
+    });
+
+    // Subscribe to deep link events
+    const unsubscribe = deepLinkingService.addListener((data: DeepLinkData) => {
+      handleDeepLinkEvent(data);
+    });
+
+    return () => {
+      unsubscribe();
+      addLog('🔌 Deep Linking Listener Unsubscribed');
+    };
   }, []);
 
-  const testLinks = [
-    // ✅ SOAL 1: Basic Deep Links
-    { name: '🏠 Home', url: 'ecommerceapp://home' },
-    { name: '📱 Home (Universal)', url: 'https://miniecommerce.com/home' },
-    
-    // ✅ SOAL 2: Product Deep Links
-    { name: '🛍️ Product 123', url: 'ecommerceapp://product/123' },
-    { name: '📦 Product 404', url: 'ecommerceapp://product/404' },
-    { name: '🔗 Product Universal', url: 'https://miniecommerce.com/product/456' },
-    
-    // ✅ SOAL 3: Cart & Navigation
-    { name: '🛒 Cart', url: 'ecommerceapp://cart' },
-    { name: '📋 Products List', url: 'ecommerceapp://products' },
-    
-    // ✅ SOAL 4: Profile dengan Validasi
-    { name: '👤 Profile user123', url: 'ecommerceapp://profile/user123' },
-    { name: '👥 Profile john_doe', url: 'ecommerceapp://profile/john_doe' },
-    { name: '🔗 Profile Universal', url: 'https://miniecommerce.com/profile/mary_jane' },
-    
-    // ✅ SOAL 5: Error Cases untuk Testing
-    { name: '❌ Invalid Product ID', url: 'ecommerceapp://product/abc' },
-    { name: '❌ Short User ID', url: 'ecommerceapp://profile/ab' },
-    { name: '❌ Invalid Characters', url: 'ecommerceapp://profile/user@123' },
-    { name: '❌ Unknown Route', url: 'ecommerceapp://unknown' },
-    
-    // ✅ Additional Test Cases
-    { name: '🔐 Login', url: 'ecommerceapp://login' },
-    { name: '⚙️ Settings', url: 'ecommerceapp://settings' },
-    { name: '📊 Analytics', url: 'ecommerceapp://analytics' },
-  ];
+  const addLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    setLogs(prev => [logMessage, ...prev.slice(0, 19)]); // Keep last 20 logs
+    console.log(logMessage);
+  };
 
-  const handleTestLink = async (testName: string, url: string) => {
-    try {
-      console.log(`🧪 Testing: ${testName} - ${url}`);
-      
-      const success = await deepLinkingService.testDeepLink(url);
-      
-      setTestResults(prev => [
-        {
-          name: testName,
-          success,
-          url,
-          timestamp: new Date()
-        },
-        ...prev.slice(0, 9) // Keep last 10 results
-      ]);
-
-      if (success) {
-        console.log(`✅ Test passed: ${testName}`);
-      } else {
-        console.warn(`⚠️ Test failed: ${testName}`);
+  const handleDeepLinkEvent = (data: DeepLinkData) => {
+    addLog(`📨 Received: ${data.route} | Params: ${JSON.stringify(data.params)}`);
+    
+    // ✅ Tugas f: Handle add-to-cart actions
+    if (data.route === 'add-to-cart' && data.params.productId) {
+      const productId = parseInt(data.params.productId);
+      if (!isNaN(productId)) {
+        addLog(`🛒 Adding product ${productId} to cart via deep link`);
+        
+        // Create mock product
+        const mockProduct = {
+          id: productId,
+          nama: `Product ${productId} from Deep Link`,
+          harga: Math.floor(Math.random() * 500000) + 50000,
+          deskripsi: 'Added via deep link testing',
+          kategori: 'Test',
+          urlGambar: `https://picsum.photos/200/200?random=${productId}`
+        };
+        
+        addToCart(mockProduct);
+        Alert.alert('✅ Success', `Product ${productId} added to cart via deep link!`);
       }
-    } catch (error) {
-      console.error(`❌ Test error: ${testName}`, error);
-      
-      setTestResults(prev => [
-        {
-          name: testName,
-          success: false,
-          url,
-          timestamp: new Date()
-        },
-        ...prev.slice(0, 9)
-      ]);
+    }
+
+    // ✅ Tugas j: Handle fallback navigation
+    if (data.route === 'fallback') {
+      addLog(`🔄 Fallback: ${data.params.message}`);
+      Alert.alert('Fallback Navigation', data.params.message);
     }
   };
 
-  const runAllTests = async () => {
-    Alert.alert(
-      'Run All Tests?',
-      `This will test ${testLinks.length} deep links. Continue?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Run All', 
-          onPress: async () => {
-            for (const link of testLinks) {
-              await handleTestLink(link.name, link.url);
-              // ✅ FIX: TypeScript fix untuk setTimeout
-              await new Promise<void>(resolve => setTimeout(resolve, 500));
-            }
-          } 
-        }
-      ]
-    );
+  const handleTestDeepLink = async () => {
+    if (!testUrl.trim()) {
+      Alert.alert('Error', 'Please enter a URL to test');
+      return;
+    }
+
+    addLog(`🧪 Testing: ${testUrl}`);
+    
+    const success = await deepLinkingService.testDeepLink(testUrl);
+    if (success) {
+      addLog('✅ Test completed successfully');
+    } else {
+      addLog('❌ Test failed');
+    }
   };
 
-  const clearResults = () => {
-    setTestResults([]);
+  const handleSimulateDeepLink = () => {
+    if (!testUrl.trim()) {
+      Alert.alert('Error', 'Please enter a URL to simulate');
+      return;
+    }
+
+    addLog(`🎭 Simulating: ${testUrl}`);
+    
+    // ✅ FIX: Use the public parseDeepLink method
+    const deepLinkData = deepLinkingService.parseDeepLink(testUrl, 'warm_start');
+    if (deepLinkData) {
+      // Use simulateDeepLink method instead of direct notification
+      deepLinkingService.simulateDeepLink(deepLinkData.route, deepLinkData.params);
+    } else {
+      addLog('❌ Failed to parse URL for simulation');
+    }
   };
 
-  const getSuccessRate = () => {
-    if (testResults.length === 0) return 0;
-    const successful = testResults.filter(result => result.success).length;
-    return (successful / testResults.length) * 100;
+  const handleQuickTest = (url: string, description: string) => {
+    setTestUrl(url);
+    addLog(`⚡ Quick Test: ${description}`);
+    setTimeout(() => handleTestDeepLink(), 100);
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+    addLog('🧹 Logs cleared');
+  };
+
+  const getServiceStatus = () => {
+    const status = deepLinkingService.getStatus();
+    return `Listeners: ${status.listenerCount} | Pending: ${status.pendingActions} | Platform: ${status.platform}`;
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>🧪 Deep Link Tester</Text>
-      <Text style={styles.subtitle}>Test semua skenario deep linking</Text>
-      
-      {/* ✅ SOAL 5: Status Information */}
-      {deepLinkStatus && (
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusTitle}>Deep Linking Status</Text>
-          <View style={styles.statusGrid}>
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>Platform</Text>
-              <Text style={styles.statusValue}>{deepLinkStatus.platform}</Text>
-            </View>
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>Initialized</Text>
-              <Text style={[styles.statusValue, 
-                deepLinkStatus.isInitialized ? styles.statusSuccess : styles.statusError
-              ]}>
-                {deepLinkStatus.isInitialized ? 'Yes' : 'No'}
-              </Text>
-            </View>
-            <View style={styles.statusItem}>
-              <Text style={styles.statusLabel}>Listeners</Text>
-              <Text style={styles.statusValue}>{deepLinkStatus.listenerCount}</Text>
-            </View>
-          </View>
-        </View>
-      )}
+    <View style={styles.container}>
+      <Text style={styles.title}>🔗 Deep Link Tester</Text>
+      <Text style={styles.subtitle}>Test & Debug Deep Linking Functionality</Text>
 
-      {/* Test Results Summary */}
-      {testResults.length > 0 && (
-        <View style={styles.resultsHeader}>
-          <Text style={styles.resultsTitle}>
-            Test Results ({testResults.length} tests)
-          </Text>
-          <Text style={[
-            styles.successRate,
-            { color: getSuccessRate() >= 80 ? '#4caf50' : getSuccessRate() >= 50 ? '#ff9800' : '#f44336' }
-          ]}>
-            Success: {getSuccessRate().toFixed(1)}%
-          </Text>
-        </View>
-      )}
+      {/* Status Bar */}
+      <View style={[styles.statusBar, isConnected ? styles.statusConnected : styles.statusDisconnected]}>
+        <Text style={styles.statusText}>
+          {isConnected ? '🟢 CONNECTED' : '🔴 DISCONNECTED'} | {getServiceStatus()}
+        </Text>
+      </View>
 
-      {/* Control Buttons */}
-      <View style={styles.controlContainer}>
-        <TouchableOpacity style={styles.runAllButton} onPress={runAllTests}>
-          <Text style={styles.runAllText}>🚀 Run All Tests</Text>
-        </TouchableOpacity>
+      {/* Test URL Input */}
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>Test URL:</Text>
+        <TextInput
+          style={styles.textInput}
+          value={testUrl}
+          onChangeText={setTestUrl}
+          placeholder="ecommerceapp://product/123"
+          placeholderTextColor="#999"
+        />
         
-        <TouchableOpacity style={styles.clearButton} onPress={clearResults}>
-          <Text style={styles.clearText}>🗑️ Clear Results</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Recent Test Results */}
-      {testResults.slice(0, 5).map((result, index) => (
-        <View key={index} style={[
-          styles.resultItem,
-          result.success ? styles.resultSuccess : styles.resultError
-        ]}>
-          <View style={styles.resultHeader}>
-            <Text style={styles.resultName}>{result.name}</Text>
-            <Text style={[
-              styles.resultStatus,
-              result.success ? styles.statusSuccess : styles.statusError
-            ]}>
-              {result.success ? '✅' : '❌'}
-            </Text>
-          </View>
-          <Text style={styles.resultUrl}>{result.url}</Text>
-          <Text style={styles.resultTime}>
-            {result.timestamp.toLocaleTimeString()}
-          </Text>
-        </View>
-      ))}
-
-      {/* Test Buttons Grid */}
-      <Text style={styles.sectionTitle}>Individual Tests</Text>
-      <View style={styles.testGrid}>
-        {testLinks.map((link, index) => (
-          <TouchableOpacity
-            key={index}
-            style={[
-              styles.testButton,
-              link.name.includes('❌') ? styles.errorTestButton : 
-              link.name.includes('✅') ? styles.successTestButton : styles.normalTestButton
-            ]}
-            onPress={() => handleTestLink(link.name, link.url)}
+        <View style={styles.buttonRow}>
+          <TouchableOpacity 
+            style={[styles.button, styles.testButton]}
+            onPress={handleTestDeepLink}
           >
-            <Text style={styles.testButtonText}>{link.name}</Text>
-            <Text style={styles.testUrlText}>{link.url}</Text>
+            <Text style={styles.buttonText}>🧪 Test Deep Link</Text>
           </TouchableOpacity>
-        ))}
+          
+          <TouchableOpacity 
+            style={[styles.button, styles.simulateButton]}
+            onPress={handleSimulateDeepLink}
+          >
+            <Text style={styles.buttonText}>🎭 Simulate Internally</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Testing Instructions */}
-      <View style={styles.instructions}>
-        <Text style={styles.instructionsTitle}>Testing Instructions:</Text>
-        <Text style={styles.instruction}>1. Click individual tests or "Run All"</Text>
-        <Text style={styles.instruction}>2. Check console for detailed logs</Text>
-        <Text style={styles.instruction}>3. Success = app navigates correctly</Text>
-        <Text style={styles.instruction}>4. Failure = error message or no navigation</Text>
-        <Text style={styles.instruction}>5. Red tests = expected to fail (error testing)</Text>
+      {/* Quick Test Buttons */}
+      <View style={styles.quickTestContainer}>
+        <Text style={styles.sectionTitle}>⚡ Quick Tests:</Text>
+        
+        <View style={styles.quickTestGrid}>
+          <TouchableOpacity 
+            style={styles.quickTestButton}
+            onPress={() => handleQuickTest('ecommerceapp://product/123', 'Valid Product')}
+          >
+            <Text style={styles.quickTestText}>🛍️ Product 123</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickTestButton}
+            onPress={() => handleQuickTest('ecommerceapp://product/abc', 'Invalid Product ID')}
+          >
+            <Text style={styles.quickTestText}>❌ Invalid ID</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickTestButton}
+            onPress={() => handleQuickTest('ecommerceapp://cart', 'Cart Page')}
+          >
+            <Text style={styles.quickTestText}>🛒 Cart</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickTestButton}
+            onPress={() => handleQuickTest('ecommerceapp://add-to-cart/456', 'Add to Cart')}
+          >
+            <Text style={styles.quickTestText}>➕ Add to Cart</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickTestButton}
+            onPress={() => handleQuickTest('ecommerceapp://profile/user123', 'Valid Profile')}
+          >
+            <Text style={styles.quickTestText}>👤 Profile</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickTestButton}
+            onPress={() => handleQuickTest('ecommerceapp://profile/user@123', 'Invalid Profile')}
+          >
+            <Text style={styles.quickTestText}>🚫 Invalid Profile</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </ScrollView>
+
+      {/* Auth Status */}
+      <View style={styles.authStatus}>
+        <Text style={styles.authText}>
+          🔐 Auth Status: {isAuthenticated ? '✅ LOGGED IN' : '❌ NOT LOGGED IN'}
+        </Text>
+        <Text style={styles.authNote}>
+          {!isAuthenticated && 'Note: Some protected routes may redirect to login'}
+        </Text>
+      </View>
+
+      {/* Logs Section */}
+      <View style={styles.logsContainer}>
+        <View style={styles.logsHeader}>
+          <Text style={styles.logsTitle}>📋 Event Logs</Text>
+          <TouchableOpacity onPress={clearLogs}>
+            <Text style={styles.clearButton}>🧹 Clear</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView style={styles.logsScrollView}>
+          {logs.length === 0 ? (
+            <Text style={styles.noLogsText}>No events yet. Test some deep links!</Text>
+          ) : (
+            logs.map((log, index) => (
+              <Text key={index} style={styles.logText}>
+                {log}
+              </Text>
+            ))
+          )}
+        </ScrollView>
+      </View>
+
+      {/* Debug Info */}
+      {__DEV__ && (
+        <View style={styles.debugInfo}>
+          <Text style={styles.debugTitle}>🐛 Debug Information:</Text>
+          <Text style={styles.debugText}>• Platform: {Platform.OS}</Text>
+          <Text style={styles.debugText}>• Valid Routes: product, cart, profile, add-to-cart</Text>
+          <Text style={styles.debugText}>• Validation: Product ID must be numeric</Text>
+          <Text style={styles.debugText}>• Fallback: Invalid links redirect to home</Text>
+          <Text style={styles.debugText}>• Auth Required: Cart & Checkout need login</Text>
+        </View>
+      )}
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    padding: 16, 
-    backgroundColor: '#f5f5f5' 
-  },
-  title: { 
-    fontSize: 24, 
-    fontWeight: 'bold', 
-    marginBottom: 8,
-    textAlign: 'center',
-    color: '#333'
-  },
-  subtitle: { 
-    fontSize: 14, 
-    color: '#666', 
-    marginBottom: 20,
-    textAlign: 'center'
-  },
-  
-  statusContainer: {
-    backgroundColor: '#fff',
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
     padding: 16,
-    borderRadius: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  statusBar: {
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 16,
+  },
+  statusConnected: {
+    backgroundColor: '#d4edda',
+    borderLeftWidth: 4,
+    borderLeftColor: '#28a745',
+  },
+  statusDisconnected: {
+    backgroundColor: '#f8d7da',
+    borderLeftWidth: 4,
+    borderLeftColor: '#dc3545',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  inputContainer: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 8,
     marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3
+    shadowRadius: 3,
+    elevation: 2,
   },
-  statusTitle: {
-    fontSize: 16,
+  label: {
+    fontSize: 14,
     fontWeight: '600',
-    marginBottom: 12,
-    color: '#333'
-  },
-  statusGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
-  statusItem: {
-    alignItems: 'center'
-  },
-  statusLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4
-  },
-  statusValue: {
-    fontSize: 14,
-    fontWeight: '600'
-  },
-  statusSuccess: {
-    color: '#4caf50'
-  },
-  statusError: {
-    color: '#f44336'
-  },
-  
-  resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 8
-  },
-  resultsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333'
-  },
-  successRate: {
-    fontSize: 14,
-    fontWeight: '600'
-  },
-  
-  controlContainer: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16
-  },
-  runAllButton: {
-    flex: 2,
-    backgroundColor: '#2196f3',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center'
-  },
-  runAllText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600'
-  },
-  clearButton: {
-    flex: 1,
-    backgroundColor: '#ff9800',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center'
-  },
-  clearText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600'
-  },
-  
-  resultItem: {
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
     marginBottom: 8,
-    borderLeftWidth: 4
-  },
-  resultSuccess: {
-    borderLeftColor: '#4caf50'
-  },
-  resultError: {
-    borderLeftColor: '#f44336'
-  },
-  resultHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4
-  },
-  resultName: {
-    fontSize: 14,
-    fontWeight: '600',
     color: '#333',
-    flex: 1
   },
-  resultStatus: {
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    padding: 12,
     fontSize: 16,
-    fontWeight: 'bold'
+    backgroundColor: '#fafafa',
+    marginBottom: 12,
   },
-  resultUrl: {
-    fontSize: 11,
-    color: '#666',
-    fontFamily: 'monospace',
-    marginBottom: 2
-  },
-  resultTime: {
-    fontSize: 10,
-    color: '#999'
-  },
-  
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginVertical: 16,
-    color: '#333'
-  },
-  testGrid: {
+  buttonRow: {
+    flexDirection: 'row',
     gap: 8,
-    marginBottom: 20
+  },
+  button: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 6,
+    alignItems: 'center',
   },
   testButton: {
-    backgroundColor: '#fff',
+    backgroundColor: '#007AFF',
+  },
+  simulateButton: {
+    backgroundColor: '#6f42c1',
+  },
+  buttonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  quickTestContainer: {
+    backgroundColor: 'white',
     padding: 16,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0'
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  normalTestButton: {
-    backgroundColor: '#fff'
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: '#333',
   },
-  successTestButton: {
-    backgroundColor: '#e8f5e8',
-    borderColor: '#4caf50'
+  quickTestGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  errorTestButton: {
-    backgroundColor: '#ffebee',
-    borderColor: '#f44336'
+  quickTestButton: {
+    flex: 1,
+    minWidth: '30%',
+    backgroundColor: '#e9ecef',
+    padding: 10,
+    borderRadius: 6,
+    alignItems: 'center',
   },
-  testButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-    color: '#333'
-  },
-  testUrlText: {
-    fontSize: 10,
-    color: '#666',
-    fontFamily: 'monospace'
-  },
-  
-  instructions: {
-    backgroundColor: '#e3f2fd',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 20
-  },
-  instructionsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#1976d2'
-  },
-  instruction: {
+  quickTestText: {
     fontSize: 12,
-    color: '#1976d2',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  authStatus: {
+    backgroundColor: 'white',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  authText: {
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: 4,
-    lineHeight: 16
-  }
+  },
+  authNote: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  logsContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  logsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  logsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  clearButton: {
+    color: '#dc3545',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  logsScrollView: {
+    flex: 1,
+  },
+  noLogsText: {
+    textAlign: 'center',
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 20,
+  },
+  logText: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: '#333',
+    marginBottom: 4,
+    padding: 4,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
+  },
+  debugInfo: {
+    backgroundColor: '#fff3cd',
+    padding: 12,
+    borderRadius: 6,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#ffc107',
+  },
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#856404',
+    marginBottom: 4,
+  },
+  debugText: {
+    fontSize: 10,
+    color: '#856404',
+    marginBottom: 2,
+  },
 });
 
+// ✅ FIX: GUNAKAN DEFAULT EXPORT
 export default DeepLinkTester;

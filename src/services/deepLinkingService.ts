@@ -14,6 +14,7 @@ export class DeepLinkingService {
   private listeners: ((data: DeepLinkData) => void)[] = [];
   private isInitialized = false;
   private urlSubscription: any = null;
+  private pendingActions: Array<{action: string, data: any}> = [];
 
   static getInstance(): DeepLinkingService {
     if (!DeepLinkingService.instance) {
@@ -50,7 +51,7 @@ export class DeepLinkingService {
   private handleAppStateChange = (nextAppState: string) => {
     if (nextAppState === 'active') {
       console.log('📱 App became active - checking for pending deep links');
-      this.checkPendingDeepLinks();
+      this.processPendingActions();
     }
   };
 
@@ -62,7 +63,9 @@ export class DeepLinkingService {
         
         const deepLinkData = this.parseDeepLink(initialUrl, 'cold_start');
         if (deepLinkData) {
-          this.notifyListeners(deepLinkData);
+          if (this.validateDeepLinkParams(deepLinkData)) {
+            this.notifyListeners(deepLinkData);
+          }
         }
       }
     } catch (error) {
@@ -75,12 +78,14 @@ export class DeepLinkingService {
     
     const deepLinkData = this.parseDeepLink(event.url, 'warm_start');
     if (deepLinkData) {
-      this.notifyListeners(deepLinkData);
+      if (this.validateDeepLinkParams(deepLinkData)) {
+        this.notifyListeners(deepLinkData);
+      }
     }
   };
 
-  // ✅ FIX: Manual URL parsing tanpa URLSearchParams.entries()
-  private parseDeepLink(url: string, type: 'cold_start' | 'warm_start'): DeepLinkData | null {
+  // ✅ FIX: Ubah dari private ke public agar bisa diakses dari DeepLinkTester
+  public parseDeepLink(url: string, type: 'cold_start' | 'warm_start'): DeepLinkData | null {
     try {
       console.log('🔍 Parsing Deep Link:', url);
 
@@ -102,19 +107,74 @@ export class DeepLinkingService {
     }
   }
 
+  // ✅ Tugas j: Validasi parameter deep link
+  private validateDeepLinkParams(data: DeepLinkData): boolean {
+    if (data.route === 'product' && data.params.id) {
+      const productId = data.params.id;
+      if (!/^\d+$/.test(productId)) {
+        console.warn('❌ Invalid product ID in deep link:', productId);
+        
+        this.notifyListeners({
+          url: data.url,
+          route: 'fallback',
+          params: { 
+            reason: 'invalid_product_id',
+            originalRoute: data.route,
+            message: 'Tautan tidak valid, dialihkan ke beranda'
+          },
+          timestamp: Date.now(),
+          type: data.type
+        });
+        
+        Alert.alert('Tautan Tidak Valid', 'ID produk harus berupa angka, dialihkan ke beranda');
+        return false;
+      }
+    }
+
+    if (data.route === 'profile' && data.params.userId) {
+      const userId = data.params.userId;
+      if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
+        console.warn('❌ Invalid user ID in deep link:', userId);
+        
+        this.notifyListeners({
+          url: data.url,
+          route: 'fallback',
+          params: { 
+            reason: 'invalid_user_id',
+            originalRoute: data.route,
+            message: 'Tautan tidak valid, dialihkan ke beranda'
+          },
+          timestamp: Date.now(),
+          type: data.type
+        });
+        
+        Alert.alert('Tautan Tidak Valid', 'ID user tidak valid, dialihkan ke beranda');
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   private parsePath(path: string, originalUrl: string, type: 'cold_start' | 'warm_start'): DeepLinkData {
     const segments = path.split('/').filter(segment => segment.length > 0);
     const route = segments[0] || 'home';
     const params: Record<string, any> = {};
 
-    // Extract parameters from path segments
+    // ✅ Tugas f: Handle add-to-cart action
+    if (route === 'add-to-cart' && segments[1]) {
+      params.productId = segments[1];
+      params.action = 'add_to_cart';
+      console.log(`🛒 Deep Link Action: Add product ${segments[1]} to cart`);
+    }
+
+    // Extract parameters dari path segments
     for (let i = 1; i < segments.length; i += 2) {
       if (segments[i + 1]) {
         params[segments[i]] = segments[i + 1];
       }
     }
 
-    // ✅ FIX: Manual query parameter parsing tanpa URLSearchParams.entries()
     this.parseQueryParams(originalUrl, params);
 
     return {
@@ -126,7 +186,6 @@ export class DeepLinkingService {
     };
   }
 
-  // ✅ NEW: Manual query parameter parsing
   private parseQueryParams(url: string, params: Record<string, any>): void {
     try {
       const queryIndex = url.indexOf('?');
@@ -138,11 +197,10 @@ export class DeepLinkingService {
       for (const pair of pairs) {
         const [key, value] = pair.split('=');
         if (key && value !== undefined) {
-          // Decode URL encoded values
           try {
             params[decodeURIComponent(key)] = decodeURIComponent(value);
           } catch {
-            params[key] = value; // Fallback jika decode gagal
+            params[key] = value;
           }
         }
       }
@@ -151,9 +209,13 @@ export class DeepLinkingService {
     }
   }
 
-  // ✅ FIX: Type-safe array iteration untuk listeners
   addListener(callback: (data: DeepLinkData) => void): () => void {
     this.listeners.push(callback);
+    
+    // ✅ Tugas f: Process any pending actions untuk new listener
+    if (this.pendingActions.length > 0) {
+      setTimeout(() => this.processPendingActions(), 100);
+    }
     
     return () => {
       this.listeners = this.listeners.filter(listener => listener !== callback);
@@ -163,7 +225,11 @@ export class DeepLinkingService {
   private notifyListeners(data: DeepLinkData): void {
     console.log('📢 Notifying deep link listeners:', data);
     
-    // ✅ FIX: Type-safe iteration dengan regular for loop
+    // ✅ Tugas j: Handle fallback navigation
+    if (data.route === 'fallback') {
+      console.log('🔄 Fallback navigation:', data.params.message);
+    }
+    
     for (let i = 0; i < this.listeners.length; i++) {
       try {
         this.listeners[i](data);
@@ -173,18 +239,42 @@ export class DeepLinkingService {
     }
   }
 
-  private async checkPendingDeepLinks(): Promise<void> {
-    try {
-      const url = await Linking.getInitialURL();
-      if (url) {
-        console.log('🔗 Processing pending deep link:', url);
-        const deepLinkData = this.parseDeepLink(url, 'cold_start');
-        if (deepLinkData) {
-          this.notifyListeners(deepLinkData);
+  // ✅ Tugas f: Method untuk add-to-cart action
+  async triggerAddToCart(productId: number): Promise<void> {
+    const action = {
+      action: 'add_to_cart',
+      data: { productId, timestamp: Date.now() }
+    };
+    
+    this.pendingActions.push(action);
+    await this.processPendingActions();
+  }
+
+  private async processPendingActions(): Promise<void> {
+    if (this.pendingActions.length === 0) return;
+
+    console.log(`🔄 Processing ${this.pendingActions.length} pending actions...`);
+    
+    const actionsToProcess = [...this.pendingActions];
+    this.pendingActions = [];
+
+    for (const pendingAction of actionsToProcess) {
+      try {
+        if (pendingAction.action === 'add_to_cart') {
+          this.notifyListeners({
+            url: `ecommerceapp://add-to-cart/${pendingAction.data.productId}`,
+            route: 'add-to-cart',
+            params: { 
+              productId: pendingAction.data.productId,
+              source: 'pending_action'
+            },
+            timestamp: pendingAction.data.timestamp,
+            type: 'warm_start'
+          });
         }
+      } catch (error) {
+        console.error('❌ Error processing pending action:', error);
       }
-    } catch (error) {
-      console.error('❌ Error checking pending deep links:', error);
     }
   }
 
@@ -220,10 +310,27 @@ export class DeepLinkingService {
     }
   }
 
+  // ✅ Method untuk simulate deep link dari dalam app
+  simulateDeepLink(route: string, params: Record<string, any> = {}): void {
+    const fakeUrl = `ecommerceapp://${route}/${Object.entries(params).map(([k, v]) => `${k}/${v}`).join('/')}`;
+    console.log('🎭 Simulating deep link:', fakeUrl);
+    
+    const deepLinkData = this.parseDeepLink(fakeUrl, 'warm_start');
+    if (deepLinkData) {
+      this.notifyListeners(deepLinkData);
+    }
+  }
+
+  // ✅ NEW: Public method untuk parse URL dari luar class
+  public parseURL(url: string): DeepLinkData | null {
+    return this.parseDeepLink(url, 'warm_start');
+  }
+
   getStatus() {
     return {
       isInitialized: this.isInitialized,
       listenerCount: this.listeners.length,
+      pendingActions: this.pendingActions.length,
       platform: Platform.OS,
       canTest: this.isInitialized
     };
@@ -236,6 +343,7 @@ export class DeepLinkingService {
     }
     
     this.listeners = [];
+    this.pendingActions = [];
     this.isInitialized = false;
     console.log('🧹 Deep Linking Service cleaned up');
   }
