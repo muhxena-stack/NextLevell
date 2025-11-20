@@ -1,233 +1,192 @@
-// src/screens/ProfileTabScreen.tsx
+// src/screens/ProfileTabScreen.tsx - NEW FILE
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 
-const ProfileTabScreen = () => {
-  const { user, logout, userID } = useAuth();
+const ProfileTabScreen: React.FC = () => {
+  const navigation = useNavigation();
+  const { user, logout } = useAuth();
 
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderEmoji}>👤</Text>
-          <Text style={styles.placeholderText}>Please Login</Text>
-          <Text style={styles.placeholderSubtext}>
-            Login to access your profile and order history
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  const handleLogout = () => {
+    logout();
+    navigation.navigate('Login' as never);
+  };
+
+  const navigateToDeepLinkTester = () => {
+    navigation.navigate('DeepLinkTester' as never);
+  };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.profileHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>👤</Text>
-        </View>
-        <Text style={styles.userName}>{user.nama}</Text>
-        <Text style={styles.userEmail}>{user.email}</Text>
-      </View>
-
-      <View style={styles.profileInfo}>
-        <Text style={styles.sectionTitle}>Informasi Akun</Text>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>User ID:</Text>
-          <Text style={styles.infoValue}>{userID}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Nama:</Text>
-          <Text style={styles.infoValue}>{user.nama}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Email:</Text>
-          <Text style={styles.infoValue}>{user.email}</Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Status:</Text>
-          <Text style={[styles.infoValue, styles.verified]}>✅ Terverifikasi</Text>
-        </View>
-      </View>
-
-      <View style={styles.stats}>
-        <Text style={styles.sectionTitle}>Statistik</Text>
-        <View style={styles.statRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>5</Text>
-            <Text style={styles.statLabel}>Orders</Text>
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>👤 Profil Saya</Text>
+      
+      {user ? (
+        <>
+          <View style={styles.profileCard}>
+            <Text style={styles.userName}>{user.nama}</Text>
+            <Text style={styles.userEmail}>{user.email}</Text>
+            <Text style={styles.userId}>ID: {user.id}</Text>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>12</Text>
-            <Text style={styles.statLabel}>Favorites</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>4.8</Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
-        </View>
-      </View>
 
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-    </View>
+          <View style={styles.menuSection}>
+            <Text style={styles.sectionTitle}>Menu Profil</Text>
+            
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={navigateToDeepLinkTester}
+            >
+              <Text style={styles.menuIcon}>🧪</Text>
+              <Text style={styles.menuText}>Deep Link Tester</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem}>
+              <Text style={styles.menuIcon}>📦</Text>
+              <Text style={styles.menuText}>Pesanan Saya</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem}>
+              <Text style={styles.menuIcon}>❤️</Text>
+              <Text style={styles.menuText}>Favorit</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem}>
+              <Text style={styles.menuIcon}>⚙️</Text>
+              <Text style={styles.menuText}>Pengaturan</Text>
+              <Text style={styles.menuArrow}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Text style={styles.logoutText}>🚪 Keluar</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <View style={styles.notLoggedIn}>
+          <Text style={styles.notLoggedInText}>Anda belum login</Text>
+          <TouchableOpacity 
+            style={styles.loginButton}
+            onPress={() => navigation.navigate('Login' as never)}
+          >
+            <Text style={styles.loginButtonText}>Login Sekarang</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
-    padding: 20,
+    backgroundColor: '#f8f9fa',
+    padding: 16,
   },
-  placeholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    margin: 20,
-    padding: 40,
-  },
-  placeholderEmoji: {
-    fontSize: 48,
-    marginBottom: 16,
-    color: '#007AFF',
-  },
-  placeholderText: {
-    fontSize: 18,
-    color: '#007AFF',
-    marginBottom: 8,
-    fontWeight: '600',
-  },
-  placeholderSubtext: {
-    fontSize: 14,
-    color: '#666',
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
     textAlign: 'center',
-    lineHeight: 20,
+    marginVertical: 20,
+    color: '#333',
   },
-  profileHeader: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 30,
-    borderRadius: 16,
+  profileCard: {
+    backgroundColor: '#fff',
+    padding: 20,
+    borderRadius: 12,
     marginBottom: 20,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#E3F2FD',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  avatarText: {
-    fontSize: 32,
-    color: '#007AFF',
   },
   userName: {
     fontSize: 20,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontWeight: 'bold',
+    color: '#333',
     marginBottom: 4,
   },
   userEmail: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#666',
+    marginBottom: 8,
   },
-  profileInfo: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 16,
+  userId: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'monospace',
+  },
+  menuSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
     marginBottom: 20,
-    shadowColor: '#007AFF',
+    overflow: 'hidden',
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
+    shadowRadius: 4,
+    elevation: 3,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007AFF',
-    marginBottom: 15,
+    fontSize: 16,
+    fontWeight: '600',
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    color: '#333',
   },
-  infoItem: {
+  menuItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  infoLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+  menuIcon: {
+    fontSize: 20,
+    marginRight: 12,
   },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '500',
+  menuText: {
+    flex: 1,
+    fontSize: 16,
     color: '#333',
   },
-  verified: {
-    color: '#28a745',
-  },
-  stats: {
-    backgroundColor: '#FFFFFF',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 30,
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-    borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#007AFF',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    fontWeight: '500',
+  menuArrow: {
+    fontSize: 18,
+    color: '#999',
   },
   logoutButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#ff4757',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    marginBottom: 20,
   },
   logoutText: {
-    color: '#FFFFFF',
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  notLoggedIn: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  notLoggedInText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  loginButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  loginButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },

@@ -1,368 +1,330 @@
-// src/screens/CartScreen.tsx
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  ScrollView
-} from 'react-native';
-import { cartService, Cart } from '../services/cartService';
-import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { Product } from '../types/types';
+// src/screens/CartScreen.tsx - FIXED VERSION
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useCart } from '../context/CartContext';
+import { CartItem } from '../types/types';
 
 const CartScreen: React.FC = () => {
-  const { isOnline, connectionType } = useNetworkStatus();
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { cartItems, removeFromCart, getTotalPrice, clearCart } = useCart();
   
-  const [cart, setCart] = useState<Cart | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [pollingCount, setPollingCount] = useState(0);
-  
-  // Ref untuk interval - FIXED: gunakan number bukan NodeJS.Timeout
-  const pollingIntervalRef = useRef<number | null>(null);
+  const [deepLinkSource, setDeepLinkSource] = useState<string>('');
 
-  // Fetch cart data
-  const fetchCartData = async () => {
-    if (!isOnline) {
-      console.log('📴 Skipping fetch - offline');
-      return;
-    }
-
+  // ✅ SOAL 3: Handle Cart Deep Links (Warm Start) - FIXED undefined checks
+  useEffect(() => {
     try {
-      const cartData = await cartService.getCart(1); // Cart ID 1 untuk demo
-      setCart(cartData);
-      setPollingCount(prev => prev + 1);
-      console.log(`🔄 Polling #${pollingCount + 1}: Cart updated`);
+      // ✅ FIX: Safe navigation state check
+      const navigationState = navigation.getState();
+      if (navigationState && navigationState.routes) {
+        const isFromDeepLink = navigationState.routes.some(
+          (route: any) => route.name === 'Cart' && !route.params
+        );
+        
+        if (isFromDeepLink) {
+          setDeepLinkSource('🔗 Dibuka via: ecommerceapp://cart');
+          console.log('🛒 Cart opened via deep link');
+        }
+      }
     } catch (error) {
-      console.error('❌ Polling error:', error);
+      console.warn('⚠️ Error checking navigation state:', error);
     }
+  }, [navigation]);
+
+  const handleRemoveItem = (productId: number) => {
+    Alert.alert(
+      'Hapus Item',
+      'Yakin ingin menghapus item dari keranjang?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Hapus', 
+          style: 'destructive',
+          onPress: () => removeFromCart(productId)
+        }
+      ]
+    );
   };
 
-  // Setup polling dengan optimasi bandwidth (Soal e)
-  useEffect(() => {
-    // Hentikan polling jika connection type adalah cellular (Soal e)
-    if (connectionType === 'cellular') {
-      console.log('📵 Polling dihentikan - menggunakan jaringan cellular');
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-      }
+  const handleCheckout = () => {
+    if (cartItems.length === 0) {
+      Alert.alert('Keranjang Kosong', 'Tambahkan produk terlebih dahulu');
       return;
     }
 
-    // Hanya mulai polling jika online dan bukan cellular
-    if (isOnline && connectionType !== 'cellular') {
-      // Fetch data pertama kali
-      fetchCartData();
+    Alert.alert(
+      'Checkout',
+      `Total: Rp ${getTotalPrice().toLocaleString('id-ID')}\nLanjutkan checkout?`,
+      [
+        { text: 'Batal', style: 'cancel' },
+        { 
+          text: 'Checkout', 
+          onPress: () => {
+            // Navigate to checkout screen
+            Alert.alert('Success', 'Checkout berhasil!');
+            clearCart();
+          }
+        }
+      ]
+    );
+  };
 
-      // Setup polling setiap 15 detik (Soal e) - FIXED: gunakan number
-      pollingIntervalRef.current = setInterval(() => {
-        fetchCartData();
-      }, 15000) as unknown as number; // 15 detik
-
-      console.log('✅ Polling dimulai - interval 15 detik');
-    }
-
-    // Cleanup function - sangat penting! (Soal e)
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
-        console.log('🧹 Polling dihentikan - cleanup');
-      }
-    };
-  }, [isOnline, connectionType]); // Restart polling ketika koneksi berubah
-
-  // Initial load
-  useEffect(() => {
-    const loadInitialData = async () => {
-      setLoading(true);
-      await fetchCartData();
-      setLoading(false);
-    };
-
-    loadInitialData();
-  }, []);
-
-  const renderCartItem = ({ item }: { item: any }) => (
+  const renderCartItem = ({ item }: { item: CartItem }) => (
     <View style={styles.cartItem}>
-      <Text style={styles.productName}>{item.title}</Text>
-      <View style={styles.itemDetails}>
-        <Text style={styles.quantity}>Qty: {item.quantity}</Text>
-        <Text style={styles.price}>${item.price} each</Text>
-        <Text style={styles.total}>Total: ${item.total}</Text>
+      <View style={styles.itemInfo}>
+        <Text style={styles.itemName}>{item.product.nama}</Text>
+        <Text style={styles.itemPrice}>Rp {item.product.harga.toLocaleString('id-ID')}</Text>
+        <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
       </View>
-      {item.discountPercentage > 0 && (
-        <Text style={styles.discount}>
-          Discount: {item.discountPercentage}% (Save: ${item.discountedPrice})
-        </Text>
-      )}
+      <TouchableOpacity 
+        style={styles.removeButton}
+        onPress={() => handleRemoveItem(item.product.id)}
+      >
+        <Text style={styles.removeButtonText}>×</Text>
+      </TouchableOpacity>
     </View>
   );
 
-  if (loading) {
+  if (cartItems.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Memuat keranjang...</Text>
+      <View style={styles.emptyContainer}>
+        {deepLinkSource && (
+          <View style={styles.deepLinkBanner}>
+            <Text style={styles.deepLinkText}>{deepLinkSource}</Text>
+          </View>
+        )}
+        
+        <Text style={styles.emptyTitle}>🛒 Keranjang Kosong</Text>
+        <Text style={styles.emptyText}>
+          {deepLinkSource 
+            ? 'Keranjang dibuka via deep link, tapi masih kosong' 
+            : 'Belum ada produk di keranjang'
+          }
+        </Text>
+        
+        <TouchableOpacity 
+          style={styles.shopButton}
+          onPress={() => navigation.navigate('Home' as never)}
+        >
+          <Text style={styles.shopButtonText}>Belanja Sekarang</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Polling Status */}
-      <View style={styles.statusBar}>
-        <Text style={styles.statusText}>
-          📡 Status: {isOnline ? 'Online' : 'Offline'} | 
-          Jaringan: {connectionType} | 
-          Polling: {connectionType === 'cellular' ? '❌ Diberhentikan' : '✅ Aktif'}
-        </Text>
-        <Text style={styles.pollingCount}>
-          Update #{pollingCount} - {new Date().toLocaleTimeString()}
-        </Text>
-      </View>
-
-      {!cart ? (
-        <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Keranjang kosong</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={fetchCartData}>
-            <Text style={styles.retryText}>Refresh</Text>
-          </TouchableOpacity>
+      {deepLinkSource && (
+        <View style={styles.deepLinkBanner}>
+          <Text style={styles.deepLinkText}>{deepLinkSource}</Text>
         </View>
-      ) : (
-        <ScrollView style={styles.content}>
-          <Text style={styles.header}>Keranjang Belanja</Text>
+      )}
+
+      <Text style={styles.title}>Keranjang Belanja</Text>
+      
+      <FlatList
+        data={cartItems}
+        renderItem={renderCartItem}
+        keyExtractor={(item) => item.product.id.toString()}
+        style={styles.cartList}
+        contentContainerStyle={styles.cartListContent}
+      />
+
+      <View style={styles.footer}>
+        <View style={styles.totalContainer}>
+          <Text style={styles.totalLabel}>Total:</Text>
+          <Text style={styles.totalPrice}>
+            Rp {getTotalPrice().toLocaleString('id-ID')}
+          </Text>
+        </View>
+        
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity 
+            style={styles.clearButton}
+            onPress={() => {
+              Alert.alert(
+                'Bersihkan Keranjang',
+                'Yakin ingin menghapus semua item?',
+                [
+                  { text: 'Batal', style: 'cancel' },
+                  { 
+                    text: 'Hapus Semua', 
+                    style: 'destructive',
+                    onPress: clearCart
+                  }
+                ]
+              );
+            }}
+          >
+            <Text style={styles.clearButtonText}>Hapus Semua</Text>
+          </TouchableOpacity>
           
-          <FlatList
-            data={cart.products}
-            renderItem={renderCartItem}
-            keyExtractor={(item) => `${item.id}-${item.quantity}`}
-            scrollEnabled={false}
-          />
-
-          <View style={styles.summary}>
-            <Text style={styles.summaryTitle}>Ringkasan Belanja</Text>
-            <View style={styles.summaryRow}>
-              <Text>Total Produk:</Text>
-              <Text style={styles.summaryValue}>{cart.totalProducts}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text>Total Quantity:</Text>
-              <Text style={styles.summaryValue}>{cart.totalQuantity}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text>Subtotal:</Text>
-              <Text style={styles.summaryValue}>${cart.total}</Text>
-            </View>
-            <View style={[styles.summaryRow, styles.totalRow]}>
-              <Text style={styles.totalLabel}>Total Diskon:</Text>
-              <Text style={styles.totalValue}>${cart.discountedTotal}</Text>
-            </View>
-          </View>
-
-          {/* Polling Info */}
-          <View style={styles.pollingInfo}>
-            <Text style={styles.pollingInfoTitle}>Informasi Polling:</Text>
-            <Text style={styles.pollingInfoText}>
-              • Data diperbarui otomatis setiap 15 detik
-            </Text>
-            <Text style={styles.pollingInfoText}>
-              • Polling dihentikan saat menggunakan jaringan cellular
-            </Text>
-            <Text style={styles.pollingInfoText}>
-              • Terakhir update: {new Date().toLocaleTimeString()}
-            </Text>
-          </View>
-
           <TouchableOpacity 
             style={styles.checkoutButton}
-            onPress={() => Alert.alert('Checkout', 'Fitur checkout akan datang!')}
+            onPress={handleCheckout}
           >
             <Text style={styles.checkoutButtonText}>Checkout</Text>
           </TouchableOpacity>
-        </ScrollView>
-      )}
+        </View>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F9FA',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff' 
   },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  emptyContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
     alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#F8F9FA',
+    padding: 20
   },
-  statusBar: {
-    backgroundColor: '#E3F2FD',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#BBDEFB',
+  deepLinkBanner: {
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196f3',
+    margin: 16,
+    borderRadius: 8,
+    width: '100%'
   },
-  statusText: {
+  deepLinkText: {
     fontSize: 12,
-    color: '#007AFF',
-    fontWeight: '500',
+    color: '#1976d2',
+    textAlign: 'center'
   },
-  pollingCount: {
-    fontSize: 11,
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#666',
-    marginTop: 2,
+    marginBottom: 8
   },
-  content: {
-    flex: 1,
-    padding: 16,
+  emptyText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    marginBottom: 20
   },
-  header: {
+  shopButton: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8
+  },
+  shopButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600'
+  },
+  title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
+    padding: 16,
+    color: '#333'
+  },
+  cartList: {
+    flex: 1
+  },
+  cartListContent: {
+    padding: 16
   },
   cartItem: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  productName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  itemDetails: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  quantity: {
-    fontSize: 14,
-    color: '#666',
-  },
-  price: {
-    fontSize: 14,
-    color: '#666',
-  },
-  total: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#FF4500',
-  },
-  discount: {
-    fontSize: 12,
-    color: '#28a745',
-    fontStyle: 'italic',
-  },
-  summary: {
-    backgroundColor: 'white',
-    padding: 16,
-    borderRadius: 8,
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  summaryTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-  },
-  summaryRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingVertical: 4,
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF'
   },
-  summaryValue: {
+  itemInfo: {
+    flex: 1
+  },
+  itemName: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
+    marginBottom: 4
   },
-  totalRow: {
+  itemPrice: {
+    fontSize: 14,
+    color: '#007AFF',
+    marginBottom: 2
+  },
+  itemQuantity: {
+    fontSize: 12,
+    color: '#666'
+  },
+  removeButton: {
+    backgroundColor: '#ff4757',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  removeButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold'
+  },
+  footer: {
+    padding: 16,
+    backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
-    paddingTop: 12,
-    marginTop: 8,
+    borderTopColor: '#e0e0e0'
+  },
+  totalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16
   },
   totalLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  totalValue: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontWeight: '600',
+    color: '#333'
   },
-  pollingInfo: {
-    backgroundColor: '#FFF3CD',
+  totalPrice: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#007AFF'
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12
+  },
+  clearButton: {
+    flex: 1,
+    backgroundColor: '#ff4757',
     padding: 16,
     borderRadius: 8,
-    marginTop: 20,
-    marginBottom: 20,
+    alignItems: 'center'
   },
-  pollingInfoTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#856404',
-    marginBottom: 8,
-  },
-  pollingInfoText: {
-    fontSize: 12,
-    color: '#856404',
-    marginBottom: 4,
+  clearButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600'
   },
   checkoutButton: {
-    backgroundColor: '#007AFF',
+    flex: 2,
+    backgroundColor: '#4caf50',
     padding: 16,
     borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 30,
+    alignItems: 'center'
   },
   checkoutButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  loadingText: {
-    marginTop: 12,
+    color: '#fff',
     fontSize: 16,
-    color: '#666',
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+    fontWeight: '600'
+  }
 });
 
 export default CartScreen;
