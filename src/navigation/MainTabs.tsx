@@ -1,69 +1,100 @@
-// src/navigation/MainTabs.tsx
+// src/navigation/MainTabs.tsx - FIXED VERSION
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import FontAwesome6 from 'react-native-vector-icons/FontAwesome6';
+import { Text } from 'react-native'; // ✅ IMPORT Text dari react-native
 
-// Import screens
-import HomeStack from './HomeStack';
-import ProductListScreen from '../screens/ProductListScreen'; // NEW
-import CartScreen from '../screens/CartScreen'; // NEW
-import ProfileScreen from '../screens/ProfileScreen';
-import SettingsScreen from '../screens/SettingsScreen';
+// Import screens yang ada
+import ProductCatalogScreen from '../screens/ProductCatalogScreen';
+import ProfileTabScreen from '../screens/ProfileTabScreen';
+import DeepLinkTester from '../components/DeepLinkTester';
+
+// ✅ BUAT temporary screens untuk yang missing
+const HomeScreen = () => (
+  <Text style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, textAlign: 'center' }}>
+    🏠 Home Screen{'\n\n'}
+    Ini adalah halaman beranda.{'\n'}
+    Deep link: ecommerceapp://home
+  </Text>
+);
+
+const ProductListScreen = () => (
+  <Text style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, textAlign: 'center' }}>
+    🛍️ Product List Screen{'\n\n'}
+    Ini adalah halaman daftar produk.{'\n'}
+    Deep link: ecommerceapp://products
+  </Text>
+);
 
 const Tab = createBottomTabNavigator();
+const HomeStack = createNativeStackNavigator();
+const ProductsStack = createNativeStackNavigator();
+const ProfileStack = createNativeStackNavigator();
 
-const MainTabs = () => {
+// Home Stack Navigator
+const HomeStackNavigator = () => (
+  <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStack.Screen name="HomeMain" component={HomeScreen} />
+  </HomeStack.Navigator>
+);
+
+// Products Stack Navigator
+const ProductsStackNavigator = () => (
+  <ProductsStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProductsStack.Screen name="ProductsMain" component={ProductCatalogScreen} />
+    <ProductsStack.Screen name="ProductList" component={ProductListScreen} />
+  </ProductsStack.Navigator>
+);
+
+// Profile Stack Navigator
+const ProfileStackNavigator = () => (
+  <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProfileStack.Screen name="ProfileMain" component={ProfileTabScreen} />
+    <ProfileStack.Screen name="DeepLinkTester" component={DeepLinkTester} />
+  </ProfileStack.Navigator>
+);
+
+const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#666',
         tabBarStyle: {
-          backgroundColor: 'white',
+          backgroundColor: '#fff',
           borderTopWidth: 1,
-          borderTopColor: '#E0E0E0',
+          borderTopColor: '#e0e0e0',
         },
+        headerShown: false
       }}
     >
       <Tab.Screen 
-        name="Home" 
-        component={HomeStack}
+        name="HomeTab" 
+        component={HomeStackNavigator}
         options={{
-          headerShown: false,
+          title: 'Beranda',
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="house" size={size} color={color} />
+            <Text style={{ color, fontSize: size - 4 }}>🏠</Text> // ✅ FIX: Gunakan Text dari react-native
           ),
         }}
       />
       <Tab.Screen 
-        name="ProductList" 
-        component={ProductListScreen}
+        name="ProductsTab" 
+        component={ProductsStackNavigator}
         options={{
-          title: 'Produk API',
+          title: 'Produk',
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="list" size={size} color={color} />
+            <Text style={{ color, fontSize: size - 4 }}>🛍️</Text> // ✅ FIX: Gunakan Text dari react-native
           ),
         }}
       />
       <Tab.Screen 
-        name="Cart" 
-        component={CartScreen}
-        options={{
-          title: 'Keranjang',
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="cart-shopping" size={size} color={color} />
-          ),
-          tabBarBadge: 3, // Demo badge
-        }}
-      />
-      <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen}
+        name="ProfileTab" 
+        component={ProfileStackNavigator}
         options={{
           title: 'Profil',
           tabBarIcon: ({ color, size }) => (
-            <FontAwesome6 name="user" size={size} color={color} />
+            <Text style={{ color, fontSize: size - 4 }}>👤</Text> // ✅ FIX: Gunakan Text dari react-native
           ),
         }}
       />
