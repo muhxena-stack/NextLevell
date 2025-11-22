@@ -1,4 +1,4 @@
-// src/components/AddProductModal.tsx
+// src/components/AddProductModal.tsx - UPDATED WITH MULTI-IMAGE PICKER
 import React, { useState } from 'react';
 import {
   Modal,
@@ -11,7 +11,8 @@ import {
   Alert,
   Image
 } from 'react-native';
-import { Product } from '../types/types';
+import { Product, ProductImageAssets } from '../types/types';
+import ProductImagePicker from './ProductImagePicker';
 
 interface AddProductModalProps {
   visible: boolean;
@@ -31,6 +32,9 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
   const [urlGambar, setUrlGambar] = useState('');
   const [rating, setRating] = useState('4.0');
   const [terjual, setTerjual] = useState('0');
+  
+  // 🆕 NEW: State untuk multiple images
+  const [productImages, setProductImages] = useState<ProductImageAssets[]>([]);
 
   const handleAddProduct = () => {
     if (!nama || !harga || !deskripsi) {
@@ -38,13 +42,18 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
       return;
     }
 
+    // 🆕 NEW: Convert product images ke URLs
+    const imageUrls = productImages.map(asset => asset.uri);
+    
     const newProduct: Product = {
       id: Date.now(),
       nama,
       harga: parseInt(harga),
       deskripsi,
       kategori,
-      urlGambar: urlGambar || undefined,
+      urlGambar: urlGambar || imageUrls[0] || undefined, // Gunakan URL gambar pertama jika ada
+      images: imageUrls.length > 0 ? imageUrls : undefined,
+      imageAssets: productImages.length > 0 ? productImages : undefined,
       rating: parseFloat(rating),
       terjual: parseInt(terjual)
     };
@@ -63,6 +72,14 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
     setUrlGambar('');
     setRating('4.0');
     setTerjual('0');
+    // 🆕 NEW: Reset product images
+    setProductImages([]);
+  };
+
+  // 🆕 NEW: Handle images selection
+  const handleImagesSelected = (assets: ProductImageAssets[]) => {
+    setProductImages(assets);
+    console.log(`📸 ${assets.length} images selected for product`);
   };
 
   const categories = ['Elektronik', 'Otomotif', 'Bayi', 'Pakaian', 'Makanan'];
@@ -105,7 +122,14 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
             placeholderTextColor="#999"
           />
 
-          <Text style={styles.label}>URL Gambar</Text>
+          {/* 🆕 NEW: Product Image Picker */}
+          <Text style={styles.label}>Gambar Produk</Text>
+          <ProductImagePicker 
+            onImagesSelected={handleImagesSelected}
+            maxSelection={5}
+          />
+
+          <Text style={styles.label}>URL Gambar (Opsional)</Text>
           <TextInput
             style={styles.input}
             value={urlGambar}
@@ -118,13 +142,34 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
           {/* Preview Gambar */}
           {showImagePreview && (
             <View style={styles.imagePreviewContainer}>
-              <Text style={styles.previewLabel}>Preview Gambar:</Text>
+              <Text style={styles.previewLabel}>Preview Gambar URL:</Text>
               <Image 
                 source={{ uri: urlGambar }} 
                 style={styles.imagePreview}
                 resizeMode="contain"
                 onError={() => Alert.alert('Error', 'Gagal memuat gambar dari URL tersebut')}
               />
+            </View>
+          )}
+
+          {/* 🆕 NEW: Preview Selected Images */}
+          {productImages.length > 0 && (
+            <View style={styles.selectedImagesContainer}>
+              <Text style={styles.previewLabel}>
+                Preview Gambar Terpilih ({productImages.length}):
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {productImages.map((asset, index) => (
+                  <View key={asset.id} style={styles.selectedImageContainer}>
+                    <Image 
+                      source={{ uri: asset.uri }} 
+                      style={styles.selectedImage}
+                      resizeMode="cover"
+                    />
+                    <Text style={styles.imageIndex}>{index + 1}</Text>
+                  </View>
+                ))}
+              </ScrollView>
             </View>
           )}
 
@@ -182,6 +227,16 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
             textAlignVertical="top"
             placeholderTextColor="#999"
           />
+
+          {/* 🆕 NEW: Form Summary */}
+          <View style={styles.formSummary}>
+            <Text style={styles.summaryTitle}>Ringkasan Produk:</Text>
+            <Text style={styles.summaryText}>• {nama || 'Nama produk'}</Text>
+            <Text style={styles.summaryText}>• Rp {harga || '0'}</Text>
+            <Text style={styles.summaryText}>• {kategori}</Text>
+            <Text style={styles.summaryText}>• {productImages.length} gambar terpilih</Text>
+            <Text style={styles.summaryText}>• Rating: {rating}/5</Text>
+          </View>
         </ScrollView>
 
         <View style={styles.footer}>
@@ -192,10 +247,16 @@ const AddProductModal: React.FC<AddProductModalProps> = ({
             <Text style={styles.cancelButtonText}>Batal</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.addButton}
+            style={[
+              styles.addButton,
+              (!nama || !harga || !deskripsi) && styles.addButtonDisabled
+            ]}
             onPress={handleAddProduct}
+            disabled={!nama || !harga || !deskripsi}
           >
-            <Text style={styles.addButtonText}>Tambah Produk</Text>
+            <Text style={styles.addButtonText}>
+              Tambah Produk ({productImages.length} gambar)
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -282,12 +343,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 8,
+    fontWeight: '500',
   },
   imagePreview: {
     width: '100%',
     height: 150,
     borderRadius: 8,
     backgroundColor: '#f8f9fa',
+  },
+  // 🆕 NEW: Selected Images Styles
+  selectedImagesContainer: {
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  selectedImageContainer: {
+    position: 'relative',
+    marginRight: 12,
+  },
+  selectedImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  imageIndex: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    color: '#fff',
+    fontSize: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  // 🆕 NEW: Form Summary Styles
+  formSummary: {
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 8,
+    marginTop: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
   },
   footer: {
     flexDirection: 'row',
@@ -314,6 +422,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     borderRadius: 8,
     alignItems: 'center',
+  },
+  addButtonDisabled: {
+    backgroundColor: '#ccc',
   },
   addButtonText: {
     color: 'white',

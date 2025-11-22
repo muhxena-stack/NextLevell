@@ -1,22 +1,37 @@
-// src/screens/ProfileScreen.tsx - ENHANCED WITH VALIDATION
+// src/screens/ProfileScreen.tsx - UPDATED WITH AVATAR UPLOAD
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, ScrollView } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  Alert, 
+  ScrollView, 
+  TouchableOpacity,
+  Image,
+  ActivityIndicator 
+} from 'react-native';
 import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { useImagePicker } from '../hooks/useImagePicker';
+import ImagePickerModal from '../components/ImagePickerModal';
+import { SimpleImageAsset } from '../types/types';
 
 type ProfileRouteProp = RouteProp<{ Profile: { userId?: string } }, 'Profile'>;
 
 const ProfileScreen: React.FC = () => {
   const route = useRoute<ProfileRouteProp>();
   const navigation = useNavigation();
-  const { user } = useAuth();
+  const { user, updateUserAvatar } = useAuth();
+  const { pickAvatar, takeAvatarPhoto, uploading } = useImagePicker();
   
   const { userId } = route.params || {};
   const [profileUser, setProfileUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isDeepLink, setIsDeepLink] = useState(false);
+  const [showImagePicker, setShowImagePicker] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
 
-  // ✅ SOAL 4: Validasi Parameter dari Deep Link
+  // ✅ Load profile data
   useEffect(() => {
     const validateAndLoadProfile = async () => {
       try {
@@ -26,20 +41,14 @@ const ProfileScreen: React.FC = () => {
         if (userId) {
           setIsDeepLink(true);
           
-          // ✅ Validasi 1: userId tidak boleh kosong
+          // Validasi userId
           if (!userId || userId.trim().length === 0) {
             throw new Error('User ID tidak boleh kosong');
           }
 
-          // ✅ Validasi 2: userId harus alphanumeric, 3-20 karakter
           const userIdRegex = /^[a-zA-Z0-9_-]{3,20}$/;
           if (!userIdRegex.test(userId)) {
             throw new Error('User ID harus 3-20 karakter (huruf, angka, -, _)');
-          }
-
-          // ✅ Validasi 3: userId tidak boleh 'invalid' (dari parsing error)
-          if (userId === 'invalid') {
-            throw new Error('Format User ID tidak valid');
           }
 
           console.log('👤 Loading profile from deep link, UserId:', userId);
@@ -55,11 +64,6 @@ const ProfileScreen: React.FC = () => {
             isVerified: Math.random() > 0.3
           };
 
-          // ✅ Validasi 4: Pastikan user exists
-          if (!mockProfile) {
-            throw new Error(`User dengan ID ${userId} tidak ditemukan`);
-          }
-
           setProfileUser(mockProfile);
           
         } else {
@@ -70,6 +74,8 @@ const ProfileScreen: React.FC = () => {
               id: user.id,
               nama: user.nama,
               email: user.email,
+              avatar: user.avatar,
+              avatarBase64: user.avatarBase64,
               joinDate: '2024-01-01',
               totalOrders: 15,
               memberLevel: 'Gold',
@@ -106,6 +112,46 @@ const ProfileScreen: React.FC = () => {
     validateAndLoadProfile();
   }, [userId, user, navigation]);
 
+  // 🆕 NEW: Handle avatar selection
+  const handleImageSelected = async (asset: SimpleImageAsset) => {
+    try {
+      setAvatarLoading(true);
+      
+      // Simulasi upload ke server
+      console.log('📤 Uploading avatar...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Generate URL avatar (simulasi)
+      const avatarUrl = `https://example.com/avatars/user_${user?.id}_${Date.now()}.jpg`;
+      
+      // Update user avatar
+      await updateUserAvatar(avatarUrl, asset.base64);
+      
+      // Update local state
+      setProfileUser(prev => prev ? {
+        ...prev,
+        avatar: avatarUrl,
+        avatarBase64: asset.base64
+      } : null);
+      
+      Alert.alert('Sukses', 'Foto profil berhasil diupdate!');
+    } catch (error) {
+      console.error('❌ Error updating avatar:', error);
+      Alert.alert('Error', 'Gagal mengupdate foto profil');
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
+  // 🆕 NEW: Handle avatar press
+  const handleAvatarPress = () => {
+    if (!user) {
+      Alert.alert('Info', 'Silakan login untuk mengubah foto profil');
+      return;
+    }
+    setShowImagePicker(true);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -129,90 +175,152 @@ const ProfileScreen: React.FC = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* ✅ Deep Link Info */}
-      {isDeepLink && (
-        <View style={styles.deepLinkSection}>
-          <Text style={styles.deepLinkTitle}>🔗 Dibuka via Deep Link</Text>
-          <Text style={styles.deepLinkId}>User ID: {userId}</Text>
-        </View>
-      )}
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView}>
+        {/* ✅ Deep Link Info */}
+        {isDeepLink && (
+          <View style={styles.deepLinkSection}>
+            <Text style={styles.deepLinkTitle}>🔗 Dibuka via Deep Link</Text>
+            <Text style={styles.deepLinkId}>User ID: {userId}</Text>
+          </View>
+        )}
 
-      <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {profileUser.nama.charAt(0).toUpperCase()}
-          </Text>
+        <View style={styles.header}>
+          {/* 🆕 NEW: Avatar dengan image picker */}
+          <TouchableOpacity 
+            style={styles.avatarContainer}
+            onPress={handleAvatarPress}
+            disabled={avatarLoading}
+          >
+            {avatarLoading ? (
+              <View style={styles.avatarLoading}>
+                <ActivityIndicator color="#007AFF" />
+              </View>
+            ) : profileUser.avatarBase64 ? (
+              <Image 
+                source={{ uri: `data:image/jpeg;base64,${profileUser.avatarBase64}` }}
+                style={styles.avatarImage}
+              />
+            ) : profileUser.avatar ? (
+              <Image 
+                source={{ uri: profileUser.avatar }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarText}>
+                  {profileUser.nama.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            
+            <View style={styles.avatarEditBadge}>
+              <Text style={styles.avatarEditText}>✎</Text>
+            </View>
+          </TouchableOpacity>
+
+          <Text style={styles.userName}>{profileUser.nama}</Text>
+          <Text style={styles.userEmail}>{profileUser.email}</Text>
+          
+          <View style={styles.badgeContainer}>
+            <View style={[
+              styles.levelBadge,
+              { backgroundColor: profileUser.memberLevel === 'Gold' ? '#ffd700' : 
+                              profileUser.memberLevel === 'Silver' ? '#c0c0c0' : '#cd7f32' }
+            ]}>
+              <Text style={styles.levelText}>{profileUser.memberLevel}</Text>
+            </View>
+            
+            {profileUser.isVerified && (
+              <View style={styles.verifiedBadge}>
+                <Text style={styles.verifiedText}>✓ Terverifikasi</Text>
+              </View>
+            )}
+          </View>
         </View>
-        <Text style={styles.userName}>{profileUser.nama}</Text>
-        <Text style={styles.userEmail}>{profileUser.email}</Text>
-        
-        <View style={styles.badgeContainer}>
-          <View style={[
-            styles.levelBadge,
-            { backgroundColor: profileUser.memberLevel === 'Gold' ? '#ffd700' : 
-                            profileUser.memberLevel === 'Silver' ? '#c0c0c0' : '#cd7f32' }
-          ]}>
-            <Text style={styles.levelText}>{profileUser.memberLevel}</Text>
+
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{profileUser.totalOrders}</Text>
+            <Text style={styles.statLabel}>Total Pesanan</Text>
           </View>
           
-          {profileUser.isVerified && (
-            <View style={styles.verifiedBadge}>
-              <Text style={styles.verifiedText}>✓ Terverifikasi</Text>
-            </View>
-          )}
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>
+              {Math.floor(profileUser.totalOrders * 4.5)}
+            </Text>
+            <Text style={styles.statLabel}>Points</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{profileUser.totalOrders}</Text>
-          <Text style={styles.statLabel}>Total Pesanan</Text>
+        <View style={styles.infoSection}>
+          <Text style={styles.sectionTitle}>Informasi Profil</Text>
+          
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>User ID</Text>
+            <Text style={styles.infoValue}>{profileUser.id}</Text>
+          </View>
+          
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Bergabung</Text>
+            <Text style={styles.infoValue}>{profileUser.joinDate}</Text>
+          </View>
+          
+          <View style={styles.infoItem}>
+            <Text style={styles.infoLabel}>Status</Text>
+            <Text style={styles.infoValue}>
+              {profileUser.isVerified ? 'Aktif' : 'Pending'}
+            </Text>
+          </View>
         </View>
-        
-        <View style={styles.statItem}>
-          <Text style={styles.statNumber}>
-            {Math.floor(profileUser.totalOrders * 4.5)}
-          </Text>
-          <Text style={styles.statLabel}>Points</Text>
-        </View>
-      </View>
 
-      <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>Informasi Profil</Text>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>User ID</Text>
-          <Text style={styles.infoValue}>{profileUser.id}</Text>
-        </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Bergabung</Text>
-          <Text style={styles.infoValue}>{profileUser.joinDate}</Text>
-        </View>
-        
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>Status</Text>
-          <Text style={styles.infoValue}>
-            {profileUser.isVerified ? 'Aktif' : 'Pending'}
-          </Text>
-        </View>
-      </View>
+        {/* 🆕 NEW: Avatar Upload Info */}
+        {!isDeepLink && (
+          <View style={styles.uploadInfo}>
+            <Text style={styles.uploadInfoTitle}>📸 Foto Profil</Text>
+            <Text style={styles.uploadInfoText}>
+              Tap foto profil untuk mengubahnya. Gunakan kamera atau pilih dari galeri.
+            </Text>
+            {avatarLoading && (
+              <View style={styles.uploadingIndicator}>
+                <ActivityIndicator size="small" color="#007AFF" />
+                <Text style={styles.uploadingText}>Mengupload foto...</Text>
+              </View>
+            )}
+          </View>
+        )}
 
-      {/* ✅ Validation Success Message */}
-      {isDeepLink && (
-        <View style={styles.validationSuccess}>
-          <Text style={styles.successText}>
-            ✅ Validasi deep link berhasil! User ID "{userId}" valid.
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+        {/* ✅ Validation Success Message */}
+        {isDeepLink && (
+          <View style={styles.validationSuccess}>
+            <Text style={styles.successText}>
+              ✅ Validasi deep link berhasil! User ID "{userId}" valid.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* 🆕 NEW: Image Picker Modal */}
+      <ImagePickerModal
+        visible={showImagePicker}
+        onClose={() => setShowImagePicker(false)}
+        onImageSelected={handleImageSelected}
+        title="Pilih Foto Profil"
+        includeBase64={true}
+        showPreview={true}
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff' 
+  },
+  scrollView: {
+    flex: 1,
+  },
   loadingContainer: { 
     flex: 1, 
     justifyContent: 'center', 
@@ -226,10 +334,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
     padding: 20
   },
-  loadingText: { fontSize: 16, color: '#666', marginBottom: 8 },
-  userIdText: { fontSize: 14, color: '#999', fontFamily: 'monospace' },
-  errorText: { fontSize: 18, color: '#d32f2f', marginBottom: 8 },
-  errorSubtext: { fontSize: 14, color: '#666', textAlign: 'center' },
+  loadingText: { 
+    fontSize: 16, 
+    color: '#666', 
+    marginBottom: 8 
+  },
+  userIdText: { 
+    fontSize: 14, 
+    color: '#999', 
+    fontFamily: 'monospace' 
+  },
+  errorText: { 
+    fontSize: 18, 
+    color: '#d32f2f', 
+    marginBottom: 8 
+  },
+  errorSubtext: { 
+    fontSize: 14, 
+    color: '#666', 
+    textAlign: 'center' 
+  },
   
   deepLinkSection: {
     backgroundColor: '#e8f5e8',
@@ -258,18 +382,53 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0'
   },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 16
+  },
+  avatarPlaceholder: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16
+  },
+  avatarImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#e0e0e0',
+  },
+  avatarLoading: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarText: {
-    fontSize: 32,
+    fontSize: 36,
     color: '#fff',
+    fontWeight: 'bold'
+  },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    backgroundColor: '#007AFF',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff'
+  },
+  avatarEditText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold'
   },
   userName: {
@@ -355,6 +514,37 @@ const styles = StyleSheet.create({
   infoValue: {
     fontSize: 16,
     color: '#333'
+  },
+  
+  // 🆕 NEW: Upload Info Styles
+  uploadInfo: {
+    backgroundColor: '#e3f2fd',
+    margin: 16,
+    padding: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2196f3'
+  },
+  uploadInfoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1976d2',
+    marginBottom: 8
+  },
+  uploadInfoText: {
+    fontSize: 14,
+    color: '#1976d2',
+    lineHeight: 20
+  },
+  uploadingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8
+  },
+  uploadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#1976d2'
   },
   
   validationSuccess: {
