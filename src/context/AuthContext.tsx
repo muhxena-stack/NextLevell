@@ -1,4 +1,4 @@
-// src/context/AuthContext.tsx - DIPERBAIKI
+// src/context/AuthContext.tsx - UPDATED WITH AVATAR SUPPORT
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { authKeychain } from '../security/authKeychain';
@@ -8,16 +8,10 @@ import { appInitService } from '../storage/appInitService';
 import { storageService } from '../storage/storageService';
 import { STORAGE_KEYS } from '../storage/storageKeys';
 import { keychainService } from '../security/keychainService';
+import { imageStorage } from '../storage/imageStorage';
+import { User, SimpleImageAsset } from '../types/types';
 
-// User interface
-export interface User {
-  id: string;
-  nama: string;
-  email: string;
-  avatar?: string;
-}
-
-// Auth context type
+// Auth context type - UPDATED
 interface AuthContextType {
   // State
   user: User | null;
@@ -36,6 +30,11 @@ interface AuthContextType {
   clearKeychainError: () => void;
   checkKeychainStatus: () => Promise<void>;
   refreshAuth: () => Promise<boolean>;
+  
+  // 🆕 NEW: Avatar methods
+  updateUserAvatar: (avatarUrl: string, base64?: string) => Promise<void>;
+  removeUserAvatar: () => Promise<void>;
+  getAvatarPreview: () => string | null;
   
   // Status
   isAuthenticated: boolean;
@@ -91,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // ✅ Tugas a & c: Initialize auth dengan hybrid storage + error handling
+  // ✅ Initialize auth
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -103,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // ✅ Check keychain status terlebih dahulu
         await checkKeychainStatus();
 
-        // ✅ Tugas b: Gunakan AppInitService untuk hybrid loading
+        // ✅ Gunakan AppInitService untuk hybrid loading
         const initResult = await appInitService.initializeApp();
 
         console.log('📊 App Initialization Result:', {
@@ -114,7 +113,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           loadTime: initResult.loadTime
         });
 
-        // ✅ Tugas c: Handle keychain access denied
+        // ✅ Handle keychain access denied
         if (initResult.keychainError) {
           setKeychainError('KEYCHAIN_ACCESS_DENIED');
           console.error('🔐 Keychain access denied - security changed');
@@ -129,13 +128,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return;
         }
 
-        // ✅ Tugas a & b: Gunakan data dari hybrid storage untuk auto-login
+        // ✅ Gunakan data dari hybrid storage untuk auto-login
         if (initResult.hybridData.authToken && initResult.hybridData.userId) {
           console.log('🔐 Token found in Keychain, attempting auto-login...');
           
           const userData = await storageService.getItem<User>(STORAGE_KEYS.USER_DATA);
           if (userData) {
-            setUser(userData);
+            // 🆕 NEW: Load avatar base64 dari image storage
+            const avatarBase64 = await imageStorage.getAvatarBase64();
+            const userWithAvatar = {
+              ...userData,
+              avatarBase64: avatarBase64 || userData.avatarBase64
+            };
+            
+            setUser(userWithAvatar);
             setUserID(initResult.hybridData.userId);
             console.log('✅ Auto-login successful from Hybrid Storage');
           } else {
@@ -179,21 +185,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
       }
 
-      // Simulasi API call login - DIPERBAIKI: Type yang benar untuk Promise
+      // Simulasi API call login
       console.log('🔄 Simulating API login...');
       await new Promise<void>((resolve) => setTimeout(resolve, 1500));
 
+      // 🆕 NEW: Load existing avatar base64
+      const existingAvatarBase64 = await imageStorage.getAvatarBase64();
+      
       const newUser: User = {
         id: 'user_' + Date.now(),
         nama: username,
         email: `${username}@example.com`,
-        avatar: `https://ui-avatars.com/api/?name=${username}&background=007AFF&color=fff`
+        avatar: `https://ui-avatars.com/api/?name=${username}&background=007AFF&color=fff`,
+        avatarBase64: existingAvatarBase64 || undefined
       };
       
       // Generate simulated JWT token
       const fakeToken = 'jwt_simulated_token_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       
-      // ✅ Tugas a: Simpan token ke Keychain (bukan AsyncStorage)
+      // ✅ Simpan token ke Keychain
       console.log('💾 Saving token to Keychain...');
       const keychainSuccess = await authKeychain.saveAuthToken(fakeToken, newUser.id);
       
@@ -235,12 +245,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // ✅ Logout function dengan secure cleanup - DIPERBAIKI: Type yang benar
+  // ✅ Logout function dengan secure cleanup
   const logout = async (): Promise<void> => {
     try {
       console.log('🔓 Starting secure logout process...');
       
-      // ✅ Tugas d: Pembersihan data aman - Keychain + AsyncStorage
+      // ✅ Pembersihan data aman - Keychain + AsyncStorage + Image Data
       const cleanupTasks: Promise<unknown>[] = [
         // ✅ Hapus dari Keychain (secure storage)
         authKeychain.clearAuthToken().then(success => {
@@ -251,6 +261,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // ✅ Hapus dari AsyncStorage (non-sensitive data)
         authStorage.clearAuthData().then(() => {
           console.log('✅ AsyncStorage cleared');
+          return true;
+        }),
+        
+        // 🆕 NEW: Hapus image data (avatar base64)
+        imageStorage.clearAvatarBase64().then(() => {
+          console.log('✅ Avatar base64 cleared');
           return true;
         })
       ];
@@ -285,6 +301,68 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // 🆕 NEW: Update user avatar
+  const updateUserAvatar = async (avatarUrl: string, base64?: string): Promise<void> => {
+    try {
+      console.log('🔄 Updating user avatar...');
+      
+      const updatedUser: User = {
+        ...user!,
+        avatar: avatarUrl,
+        avatarBase64: base64,
+        lastAvatarUpdate: Date.now()
+      };
+
+      // Update state
+      setUser(updatedUser);
+      
+      // Update storage
+      await storageService.setItem(STORAGE_KEYS.USER_DATA, updatedUser);
+      
+      // Save base64 untuk preview cepat
+      if (base64) {
+        await imageStorage.saveAvatarBase64(base64);
+      }
+      
+      console.log('✅ Avatar updated successfully');
+    } catch (error) {
+      console.error('❌ Error updating avatar:', error);
+      throw new Error('Gagal mengupdate avatar');
+    }
+  };
+
+  // 🆕 NEW: Remove user avatar
+  const removeUserAvatar = async (): Promise<void> => {
+    try {
+      console.log('🔄 Removing user avatar...');
+      
+      const updatedUser: User = {
+        ...user!,
+        avatar: undefined,
+        avatarBase64: undefined
+      };
+
+      // Update state
+      setUser(updatedUser);
+      
+      // Update storage
+      await storageService.setItem(STORAGE_KEYS.USER_DATA, updatedUser);
+      
+      // Clear base64 dari image storage
+      await imageStorage.clearAvatarBase64();
+      
+      console.log('✅ Avatar removed successfully');
+    } catch (error) {
+      console.error('❌ Error removing avatar:', error);
+      throw new Error('Gagal menghapus avatar');
+    }
+  };
+
+  // 🆕 NEW: Get avatar preview (base64)
+  const getAvatarPreview = (): string | null => {
+    return user?.avatarBase64 || null;
+  };
+
   // ✅ Refresh auth status
   const refreshAuth = async (): Promise<boolean> => {
     try {
@@ -295,7 +373,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (token && userId) {
         const userData = await storageService.getItem<User>(STORAGE_KEYS.USER_DATA);
         if (userData) {
-          setUser(userData);
+          // 🆕 NEW: Load avatar base64
+          const avatarBase64 = await imageStorage.getAvatarBase64();
+          const userWithAvatar = {
+            ...userData,
+            avatarBase64: avatarBase64 || userData.avatarBase64
+          };
+          
+          setUser(userWithAvatar);
           setUserID(userId);
           console.log('✅ Auth refresh successful');
           return true;
@@ -341,6 +426,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     clearKeychainError,
     checkKeychainStatus,
     refreshAuth,
+    
+    // 🆕 NEW: Avatar methods
+    updateUserAvatar,
+    removeUserAvatar,
+    getAvatarPreview,
     
     // Status
     isAuthenticated,
