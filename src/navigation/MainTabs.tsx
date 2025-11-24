@@ -1,13 +1,14 @@
-// src/navigation/MainTabs.tsx - FIXED VERSION
+// src/navigation/MainTabs.tsx - UPDATED WITH STORE LOCATOR
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { Text } from 'react-native'; // ✅ IMPORT Text dari react-native
+import { Text } from 'react-native';
 
 // Import screens yang ada
 import ProductCatalogScreen from '../screens/ProductCatalogScreen';
 import ProfileTabScreen from '../screens/ProfileTabScreen';
 import DeepLinkTester from '../components/DeepLinkTester';
+import StoreLocatorScreen from '../screens/StoreLocatorScreen'; // ✅ IMPORT STORE LOCATOR
 
 // ✅ BUAT temporary screens untuk yang missing
 const HomeScreen = () => (
@@ -30,6 +31,7 @@ const Tab = createBottomTabNavigator();
 const HomeStack = createNativeStackNavigator();
 const ProductsStack = createNativeStackNavigator();
 const ProfileStack = createNativeStackNavigator();
+const StoreStack = createNativeStackNavigator(); // ✅ ADD STORE STACK
 
 // Home Stack Navigator
 const HomeStackNavigator = () => (
@@ -54,6 +56,13 @@ const ProfileStackNavigator = () => (
   </ProfileStack.Navigator>
 );
 
+// ✅ STORE Stack Navigator
+const StoreStackNavigator = () => (
+  <StoreStack.Navigator screenOptions={{ headerShown: false }}>
+    <StoreStack.Screen name="StoreMain" component={StoreLocatorScreen} />
+  </StoreStack.Navigator>
+);
+
 const MainTabs: React.FC = () => {
   return (
     <Tab.Navigator
@@ -74,7 +83,7 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Beranda',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size - 4 }}>🏠</Text> // ✅ FIX: Gunakan Text dari react-native
+            <Text style={{ color, fontSize: size - 4 }}>🏠</Text>
           ),
         }}
       />
@@ -84,7 +93,18 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Produk',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size - 4 }}>🛍️</Text> // ✅ FIX: Gunakan Text dari react-native
+            <Text style={{ color, fontSize: size - 4 }}>🛍️</Text>
+          ),
+        }}
+      />
+      {/* ✅ ADD STORE LOCATOR TAB */}
+      <Tab.Screen 
+        name="StoreTab" 
+        component={StoreStackNavigator}
+        options={{
+          title: 'Toko',
+          tabBarIcon: ({ color, size }) => (
+            <Text style={{ color, fontSize: size - 4 }}>🏪</Text>
           ),
         }}
       />
@@ -94,7 +114,7 @@ const MainTabs: React.FC = () => {
         options={{
           title: 'Profil',
           tabBarIcon: ({ color, size }) => (
-            <Text style={{ color, fontSize: size - 4 }}>👤</Text> // ✅ FIX: Gunakan Text dari react-native
+            <Text style={{ color, fontSize: size - 4 }}>👤</Text>
           ),
         }}
       />

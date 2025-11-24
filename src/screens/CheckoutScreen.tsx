@@ -1,4 +1,4 @@
-// src/screens/CheckoutScreen.tsx - COMPLETE MODIFIED VERSION
+// src/screens/CheckoutScreen.tsx - COMPLETE VERSION WITH LOCATION
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView,
@@ -11,6 +11,7 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import { Product } from '../types/types';
 import { RetryUtils } from '../utils/retryUtils';
 import { biometricService } from '../security/biometricService';
+import { locationService } from '../services/locationService';
 
 type CheckoutScreenRouteProp = RouteProp<{ Checkout: { product?: Product } }, 'Checkout'>;
 
@@ -55,7 +56,13 @@ const CheckoutScreenContent: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showBiometricOption, setShowBiometricOption] = useState(false);
+  
+  // ✅ SOAL 2: State untuk delivery cost berdasarkan lokasi
+  const [deliveryCost, setDeliveryCost] = useState(15000);
+  const [isCalculatingDelivery, setIsCalculatingDelivery] = useState(false);
+  const [userLocation, setUserLocation] = useState<any>(null);
 
+  // Auto-fill user data
   useEffect(() => {
     const initializeForm = async () => {
       try {
@@ -67,9 +74,13 @@ const CheckoutScreenContent: React.FC = () => {
           }));
         }
 
+        // Check biometric availability for payment confirmation
         if (biometricSupported) {
           setShowBiometricOption(true);
         }
+
+        // ✅ SOAL 2: Calculate delivery cost based on location
+        await calculateDeliveryCost();
 
         await new Promise<void>((resolve) => setTimeout(resolve, 500));
         setIsLoading(false);
@@ -81,6 +92,51 @@ const CheckoutScreenContent: React.FC = () => {
 
     initializeForm();
   }, [user, biometricSupported]);
+
+  // ✅ SOAL 2: Calculate delivery cost based on location
+  const calculateDeliveryCost = async () => {
+    try {
+      setIsCalculatingDelivery(true);
+      console.log('📍 Calculating delivery cost based on location...');
+      
+      const location = await locationService.getCurrentLocation();
+      setUserLocation(location);
+      
+      // Simulasi perhitungan ongkir berdasarkan jarak
+      const baseCost = 15000;
+      
+      // Dalam aplikasi nyata, ini akan menghitung jarak ke gudang/toko terdekat
+      // Untuk demo, kita gunakan latitude sebagai faktor pengali
+      const distanceMultiplier = 1 + (Math.abs(location.latitude) / 100);
+      const calculatedCost = Math.min(baseCost * distanceMultiplier, 50000);
+      
+      // Bulatkan ke kelipatan 1000 terdekat
+      const roundedCost = Math.round(calculatedCost / 1000) * 1000;
+      setDeliveryCost(roundedCost);
+      
+      console.log('📦 Delivery cost calculated:', {
+        baseCost,
+        calculatedCost: roundedCost,
+        userLocation: location
+      });
+      
+    } catch (error: any) {
+      console.error('❌ Delivery calculation error:', error);
+      
+      if (error.code === 3) { // TIMEOUT error
+        Alert.alert(
+          'GPS Timeout', 
+          'Periksa koneksi GPS Anda. Menggunakan ongkir standar.',
+          [{ text: 'OK' }]
+        );
+      }
+      
+      // Fallback to default cost
+      setDeliveryCost(15000);
+    } finally {
+      setIsCalculatingDelivery(false);
+    }
+  };
 
   const handleInputChange = (field: keyof CheckoutForm, value: string) => {
     setFormData(prev => ({
@@ -133,36 +189,34 @@ const CheckoutScreenContent: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
- const handleBiometricPayment = async (totalAmount: number): Promise<boolean> => {
-  try {
-    console.log('💰 Starting biometric payment confirmation...');
-    
-    // ✅ GUNAKAN METHOD confirmPayment YANG SUDAH ADA
-    const success = await biometricService.confirmPayment(totalAmount);
-    
-    if (success) {
-      console.log('✅ Biometric payment confirmation successful');
-      return true;
-    } else {
-      console.log('❌ Biometric payment confirmation failed or canceled');
-      Alert.alert('Dibatalkan', 'Transfer dibatalkan.');
+  const handleBiometricPayment = async (totalAmount: number): Promise<boolean> => {
+    try {
+      const promptMessage = `Konfirmasi Transfer Rp ${totalAmount.toLocaleString('id-ID')}`;
+      const success = await biometricService.confirmPayment(totalAmount);
+      
+      if (success) {
+        console.log('✅ Biometric payment confirmation successful');
+        return true;
+      } else {
+        console.log('❌ Biometric payment confirmation failed or canceled');
+        Alert.alert('Dibatalkan', 'Transfer dibatalkan.');
+        return false;
+      }
+    } catch (error: any) {
+      console.error('❌ Biometric payment error:', error);
+      
+      if (error.message === 'BIOMETRIC_LOCKOUT') {
+        Alert.alert(
+          'Biometrik Terkunci',
+          'Terlalu banyak percobaan gagal. Silakan gunakan konfirmasi manual.'
+        );
+      } else {
+        Alert.alert('Error', 'Verifikasi biometrik gagal. Silakan coba lagi.');
+      }
+      
       return false;
     }
-  } catch (error: any) {
-    console.error('❌ Biometric payment error:', error);
-    
-    if (error.message === 'BIOMETRIC_LOCKOUT') {
-      Alert.alert(
-        'Biometrik Terkunci',
-        'Terlalu banyak percobaan gagal. Silakan gunakan konfirmasi manual.'
-      );
-    } else {
-      Alert.alert('Error', 'Verifikasi biometrik gagal. Silakan coba lagi.');
-    }
-    
-    return false;
-  }
-};
+  };
 
   const handleConfirmCheckout = async () => {
     if (!validateForm()) {
@@ -170,7 +224,7 @@ const CheckoutScreenContent: React.FC = () => {
       return;
     }
 
-    const totalAmount = getTotalPrice() + 15000 + (formData.metodePembayaran === 'cod' ? 5000 : 0);
+    const totalAmount = getTotalPrice() + deliveryCost + (formData.metodePembayaran === 'cod' ? 5000 : 0);
     const requiresBiometric = totalAmount >= 500000;
 
     if (requiresBiometric && showBiometricOption) {
@@ -203,6 +257,9 @@ const CheckoutScreenContent: React.FC = () => {
     setIsSubmitting(true);
 
     try {
+      // ✅ SOAL 4: Kirim data lokasi ke server untuk analitik (hemat data)
+      await locationService.sendLocationToServer();
+
       await RetryUtils.withRetry(async () => {
         console.log('📦 Processing checkout with retry logic...');
         
@@ -219,12 +276,15 @@ const CheckoutScreenContent: React.FC = () => {
           catatan: formData.catatan,
           metodePembayaran: formData.metodePembayaran,
           total: totalAmount,
+          deliveryCost: deliveryCost,
+          userLocation: userLocation, // ✅ Include location data
           timestamp: new Date().toISOString(),
           biometricConfirmed: requiresBiometric && showBiometricOption
         };
 
         console.log('💳 Checkout Data:', checkoutData);
 
+        // Simulate API call with retry
         await new Promise<void>((resolve, reject) => {
           setTimeout(() => {
             if (Math.random() < 0.2) {
@@ -238,9 +298,10 @@ const CheckoutScreenContent: React.FC = () => {
         return checkoutData;
       });
 
+      // Success
       Alert.alert(
         'Checkout Berhasil! 🎉',
-        `Pesanan Anda telah diterima.\n\nTotal: Rp ${totalAmount.toLocaleString('id-ID')}\n\nKode pesanan: #${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+        `Pesanan Anda telah diterima.\n\nTotal: Rp ${totalAmount.toLocaleString('id-ID')}\nOngkir: Rp ${deliveryCost.toLocaleString('id-ID')}\n\nKode pesanan: #${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
         [
           {
             text: 'Kembali ke Beranda',
@@ -362,7 +423,7 @@ const CheckoutScreenContent: React.FC = () => {
     );
   }
 
-  const totalAmount = getTotalPrice() + 15000 + (formData.metodePembayaran === 'cod' ? 5000 : 0);
+  const totalAmount = getTotalPrice() + deliveryCost + (formData.metodePembayaran === 'cod' ? 5000 : 0);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -424,8 +485,18 @@ const CheckoutScreenContent: React.FC = () => {
           </View>
           
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Ongkos Kirim</Text>
-            <Text style={styles.summaryValue}>Rp 15.000</Text>
+            <Text style={styles.summaryLabel}>
+              Ongkos Kirim 
+              {isCalculatingDelivery && (
+                <ActivityIndicator size="small" color="#007AFF" style={{ marginLeft: 8 }} />
+              )}
+            </Text>
+            <Text style={styles.summaryValue}>
+              Rp {deliveryCost.toLocaleString('id-ID')}
+              {userLocation && (
+                <Text style={styles.locationNote}> • Berdasarkan lokasi</Text>
+              )}
+            </Text>
           </View>
           
           {formData.metodePembayaran === 'cod' && (
@@ -442,14 +513,31 @@ const CheckoutScreenContent: React.FC = () => {
             </Text>
           </View>
 
+          {/* ✅ SOAL 2: Delivery Cost Information */}
+          <View style={styles.deliveryInfo}>
+            <Text style={styles.deliveryTitle}>ℹ️ Informasi Pengiriman</Text>
+            <Text style={styles.deliveryText}>
+              • Ongkir dihitung otomatis berdasarkan lokasi Anda
+            </Text>
+            <Text style={styles.deliveryText}>
+              • Pengiriman 1-3 hari kerja
+            </Text>
+            <TouchableOpacity 
+              style={styles.recalculateButton}
+              onPress={calculateDeliveryCost}
+              disabled={isCalculatingDelivery}
+            >
+              <Text style={styles.recalculateButtonText}>
+                {isCalculatingDelivery ? 'Menghitung...' : '🔄 Hitung Ulang Ongkir'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {showBiometricOption && totalAmount >= 500000 && (
             <View style={styles.securityInfo}>
               <Text style={styles.securityTitle}>🔒 Verifikasi Biometrik Diperlukan</Text>
               <Text style={styles.securityText}>
                 • Transaksi di atas Rp 500.000 memerlukan verifikasi biometrik
-              </Text>
-              <Text style={styles.securityText}>
-                • Pastikan biometrik Anda sudah terdaftar di perangkat
               </Text>
             </View>
           )}
@@ -459,13 +547,13 @@ const CheckoutScreenContent: React.FC = () => {
           <View style={styles.debugInfo}>
             <Text style={styles.debugTitle}>🔧 Debug Info:</Text>
             <Text style={styles.debugText}>
-              • Biometric supported: {biometricSupported ? 'Yes' : 'No'}
+              • Biometric: {biometricSupported ? 'Yes' : 'No'}
             </Text>
             <Text style={styles.debugText}>
-              • Biometric required: {totalAmount >= 500000 ? 'Yes' : 'No'}
+              • Location: {userLocation ? 'Available' : 'Not available'}
             </Text>
             <Text style={styles.debugText}>
-              • Retry logic: Active (max 3 attempts)
+              • Delivery Cost: Rp {deliveryCost.toLocaleString('id-ID')}
             </Text>
           </View>
         )}
@@ -635,7 +723,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   
-  securityInfo: {
+  // ✅ SOAL 2: Delivery Info Styles
+  deliveryInfo: {
     backgroundColor: '#E8F5E8',
     padding: 12,
     borderRadius: 8,
@@ -643,29 +732,67 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     borderLeftColor: '#4CAF50',
   },
-  securityTitle: {
+  deliveryTitle: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#2E7D32',
     marginBottom: 6,
   },
-  securityText: {
+  deliveryText: {
     fontSize: 12,
     color: '#2E7D32',
     marginBottom: 2,
     lineHeight: 16,
   },
+  recalculateButton: {
+    backgroundColor: '#4CAF50',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  recalculateButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  locationNote: {
+    fontSize: 10,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  
+  securityInfo: {
+    backgroundColor: '#FFF3CD',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#FFC107',
+  },
+  securityTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#856404',
+    marginBottom: 6,
+  },
+  securityText: {
+    fontSize: 12,
+    color: '#856404',
+    marginBottom: 2,
+    lineHeight: 16,
+  },
   
   debugInfo: {
-    backgroundColor: '#fff3cd',
+    backgroundColor: '#f8f9fa',
     padding: 12,
     borderRadius: 8,
     marginBottom: 16,
     borderLeftWidth: 4,
-    borderLeftColor: '#ffc107'
+    borderLeftColor: '#6c757d'
   },
-  debugTitle: { fontSize: 12, fontWeight: 'bold', color: '#856404', marginBottom: 4 },
-  debugText: { fontSize: 10, color: '#856404' },
+  debugTitle: { fontSize: 12, fontWeight: 'bold', color: '#495057', marginBottom: 4 },
+  debugText: { fontSize: 10, color: '#495057' },
   
   formField: { marginBottom: 16 },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6 },

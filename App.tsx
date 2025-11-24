@@ -1,4 +1,4 @@
-// App.tsx - COMPLETE FIXED VERSION
+// App.tsx - UPDATE WITH STORE LOCATOR
 import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
@@ -10,21 +10,22 @@ import { NetworkProvider } from './src/context/NetworkContext';
 import NetworkStatusBar from './src/components/NetworkStatusBar';
 import OfflineBanner from './src/components/OfflineBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import  DeepLinkTester  from './src/components/DeepLinkTester'; 
+import DeepLinkTester from './src/components/DeepLinkTester';
 import LoginScreen from './src/screens/LoginScreen';
-import MainTabs from './src/navigation/MainTabs';
+import MainTabs from './src/navigation/MainTabs'; // ✅ MainTabs sudah diupdate
 import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import ProductDetailScreen from './src/screens/ProductDetailScreen';
 import CartScreen from './src/screens/CartScreen';
 import CheckoutScreen from './src/screens/CheckoutScreen';
+import StoreLocatorScreen from './src/screens/StoreLocatorScreen'; // ✅ IMPORT STORE LOCATOR
 import { deepLinkingService } from './src/services/deepLinkingService';
 import { ProtectedRoute } from './src/components/ProtectedRoute';
 
 const Drawer = createDrawerNavigator();
 const Stack = createNativeStackNavigator();
 
-// ✅ Define proper TypeScript types
+// ✅ Define proper TypeScript types - TAMBAHKAN STORE LOCATOR
 type RootStackParamList = {
   Login: undefined;
   Main: undefined;
@@ -33,6 +34,7 @@ type RootStackParamList = {
   Checkout: { product?: any };
   Profile: { userId?: string };
   Settings: undefined;
+  StoreLocator: undefined; // ✅ ADD STORE LOCATOR
   DeepLinkTester: undefined;
   NotFound: undefined;
 };
@@ -49,7 +51,7 @@ const LoadingScreen = () => (
 
 // ✅ Component untuk handle deep link actions
 const DeepLinkHandler: React.FC = () => {
-  const navigation = useRef<any>(null); // ✅ FIX: Initialize with null
+  const navigation = useRef<any>(null);
   const { isAuthenticated, isLoading } = useAuth();
   const [pendingDeepLink, setPendingDeepLink] = useState<{route: string, params: any} | null>(null);
 
@@ -57,16 +59,16 @@ const DeepLinkHandler: React.FC = () => {
     const unsubscribe = deepLinkingService.addListener((data) => {
       console.log('🔗 DeepLinkHandler received:', data);
       
-      // ✅ Tugas j: Handle fallback navigation
+      // ✅ Handle fallback navigation
       if (data.route === 'fallback') {
         Alert.alert('Info', data.params.message);
         navigation.current?.navigate('HomeTab');
         return;
       }
 
-      // ✅ Tugas j: Handle post-login navigation
+      // ✅ Handle post-login navigation
       if (!isAuthenticated && !isLoading) {
-        if (data.route === 'product' || data.route === 'cart') {
+        if (data.route === 'product' || data.route === 'cart' || data.route === 'store') {
           console.log('🔐 User not authenticated, storing deep link for post-login');
           setPendingDeepLink({ route: data.route, params: data.params });
           navigation.current?.navigate('Login');
@@ -81,7 +83,7 @@ const DeepLinkHandler: React.FC = () => {
     return unsubscribe;
   }, [isAuthenticated, isLoading]);
 
-  // ✅ Tugas j: Process pending deep link setelah login
+  // ✅ Process pending deep link setelah login
   useEffect(() => {
     if (isAuthenticated && pendingDeepLink) {
       console.log('🔄 Processing pending deep link after login:', pendingDeepLink);
@@ -105,6 +107,9 @@ const DeepLinkHandler: React.FC = () => {
         break;
       case 'cart':
         navigation.current?.navigate('Cart');
+        break;
+      case 'store':
+        navigation.current?.navigate('StoreTab'); // ✅ NAVIGATE TO STORE TAB
         break;
       case 'profile':
         if (data.params.userId && data.params.userId !== 'invalid') {
@@ -215,19 +220,19 @@ const AppNavigator = () => {
             };
           },
 
-          // ✅ Tugas j: Complete config dengan validasi
+          // ✅ Complete config dengan validasi - TAMBAHKAN STORE
           config: {
             screens: {
               // Basic routes
               HomeTab: 'home',
               ProductsTab: 'products',
+              StoreTab: 'store', // ✅ ADD STORE DEEP LINK
               
               // ✅ Product detail dengan validasi parameter
               ProductDetail: {
                 path: 'product/:id',
                 parse: {
                   id: (id: string) => {
-                    // ✅ Validasi: ID harus angka
                     if (!id || !/^\d+$/.test(id)) {
                       console.warn('❌ Invalid product ID, triggering fallback');
                       deepLinkingService.simulateDeepLink('fallback', {
@@ -249,7 +254,6 @@ const AppNavigator = () => {
                 path: 'profile/:userId',
                 parse: {
                   userId: (userId: string) => {
-                    // ✅ Validasi: User ID harus alphanumeric
                     if (!userId || !/^[a-zA-Z0-9_-]+$/.test(userId)) {
                       console.warn('❌ Invalid user ID, triggering fallback');
                       deepLinkingService.simulateDeepLink('fallback', {
@@ -294,7 +298,7 @@ const AppNavigator = () => {
                   >
                     <Drawer.Screen 
                       name="Home" 
-                      component={MainTabs} 
+                      component={MainTabs} // ✅ MainTabs sudah include StoreTab
                       options={{ title: '🏠 Beranda' }} 
                     />
                     <Drawer.Screen 
@@ -306,6 +310,12 @@ const AppNavigator = () => {
                       name="Settings" 
                       component={SettingsScreen} 
                       options={{ title: '⚙️ Pengaturan' }} 
+                    />
+                    {/* ✅ OPTIONAL: Tambahkan juga di drawer jika mau */}
+                    <Drawer.Screen 
+                      name="StoreLocator" 
+                      component={StoreLocatorScreen} 
+                      options={{ title: '🏪 Toko Terdekat' }} 
                     />
                     <Drawer.Screen 
                       name="DeepLinkTester" 
@@ -326,6 +336,9 @@ const AppNavigator = () => {
             {/* ✅ Protected screens - akan redirect ke login jika tidak authenticated */}
             <Stack.Screen name="Cart" component={CartScreen} />
             <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            
+            {/* ✅ Store Locator juga bisa diakses langsung */}
+            <Stack.Screen name="StoreLocator" component={StoreLocatorScreen} />
           </Stack.Navigator>
         </ErrorBoundary>
       </NavigationContainer>
