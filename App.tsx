@@ -10,7 +10,7 @@ import { NetworkProvider } from './src/context/NetworkContext';
 import NetworkStatusBar from './src/components/NetworkStatusBar';
 import OfflineBanner from './src/components/OfflineBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import  DeepLinkTester  from './src/components/DeepLinkTester'; // ✅ FIX: Named import
+import  DeepLinkTester  from './src/components/DeepLinkTester'; 
 import LoginScreen from './src/screens/LoginScreen';
 import MainTabs from './src/navigation/MainTabs';
 import ProfileScreen from './src/screens/ProfileScreen';

@@ -1,5 +1,5 @@
-// src/screens/LoginScreen.tsx
-import React, { useState } from 'react';
+// src/screens/LoginScreen.tsx - COMPLETE MODIFIED VERSION
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useAuth } from '../context/AuthContext'; // Import useAuth
+import { useAuth } from '../context/AuthContext';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { RootStackParamList } from '../types/types';
 
@@ -23,13 +23,22 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, '
 const LoginScreen: React.FC = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const { isOnline } = useNetworkStatus();
-  const { login } = useAuth(); // Use AuthContext
+  const { login, loginWithBiometric, biometricSupported, biometricType, isBiometricLocked } = useAuth();
   
   const [credentials, setCredentials] = useState({
     username: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
+
+  useEffect(() => {
+    console.log('📊 Biometric status:', {
+      supported: biometricSupported,
+      type: biometricType,
+      locked: isBiometricLocked
+    });
+  }, [biometricSupported, biometricType, isBiometricLocked]);
 
   const handleLogin = async () => {
     if (!isOnline) {
@@ -42,7 +51,6 @@ const LoginScreen: React.FC = () => {
       return;
     }
 
-    // Validasi panjang password
     if (credentials.password.length < 3) {
       Alert.alert('Error', 'Password harus minimal 3 karakter');
       return;
@@ -51,37 +59,57 @@ const LoginScreen: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log('🔐 Attempting login with:', {
-        username: credentials.username,
-        password: credentials.password
-      });
-      
-      // Gunakan AuthContext login function
+      console.log('🔐 Attempting manual login...');
       const loginSuccess = await login(credentials.username, credentials.password);
       
       if (loginSuccess) {
-        console.log('✅ Login successful, navigating to Main...');
+        console.log('✅ Manual login successful');
         Alert.alert('Success', 'Login berhasil!', [
           {
             text: 'OK',
             onPress: () => {
-              console.log('🚀 Navigating to Main screen...');
               navigation.replace('Main');
             }
           }
         ]);
       } else {
-        console.log('❌ Login failed - returned false');
         Alert.alert('Error', 'Login gagal. Periksa username dan password Anda.');
       }
     } catch (error: any) {
-      console.log('❌ Login error caught:', error);
-      Alert.alert(
-        'Login Gagal', 
-        error.message || 'Terjadi kesalahan saat login. Silakan coba lagi.'
-      );
+      Alert.alert('Login Gagal', error.message || 'Terjadi kesalahan saat login.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBiometricLogin = async () => {
+    if (!isOnline) {
+      Alert.alert('Offline', 'Tidak dapat login. Periksa koneksi internet.');
+      return;
+    }
+
+    if (isBiometricLocked) {
+      Alert.alert(
+        'Biometrik Terkunci',
+        'Terlalu banyak percobaan gagal. Silakan gunakan login manual.'
+      );
+      return;
+    }
+
+    setBiometricLoading(true);
+
+    try {
+      console.log('🔐 Starting biometric login...');
+      const success = await loginWithBiometric();
+      
+      if (success) {
+        console.log('✅ Biometric login successful, navigating to Main...');
+      }
+    } catch (error: any) {
+      console.error('❌ Biometric login error:', error);
+      Alert.alert('Login Gagal', 'Autentikasi biometrik tidak berhasil.');
+    } finally {
+      setBiometricLoading(false);
     }
   };
 
@@ -92,13 +120,22 @@ const LoginScreen: React.FC = () => {
     }));
   };
 
-  // Handle quick fill for demo
   const handleQuickFill = (username: string, password: string) => {
     setCredentials({
       username,
       password
     });
-    console.log(`📝 Quick filled: ${username} / ${password}`);
+  };
+
+  const getBiometricButtonText = (): string => {
+    if (isBiometricLocked) return '🔒 Biometrik Terkunci';
+    if (biometricLoading) return 'Memverifikasi...';
+    
+    switch (biometricType) {
+      case 'FaceID': return '🎯 Login dengan Face ID';
+      case 'TouchID': return '📱 Login dengan Touch ID';
+      default: return '🔐 Login dengan Biometrik';
+    }
   };
 
   return (
@@ -153,12 +190,44 @@ const LoginScreen: React.FC = () => {
               <ActivityIndicator color="white" size="small" />
             ) : (
               <Text style={styles.loginButtonText}>
-                {!isOnline ? 'Menunggu Koneksi...' : 'Login'}
+                {!isOnline ? 'Menunggu Koneksi...' : 'Login Manual'}
               </Text>
             )}
           </TouchableOpacity>
 
-          {/* Quick Fill Buttons */}
+          {biometricSupported && !isBiometricLocked && (
+            <TouchableOpacity 
+              style={[
+                styles.biometricButton,
+                (!isOnline || biometricLoading) && styles.biometricButtonDisabled
+              ]}
+              onPress={handleBiometricLogin}
+              disabled={!isOnline || biometricLoading}
+            >
+              {biometricLoading ? (
+                <ActivityIndicator color="#007AFF" size="small" />
+              ) : (
+                <>
+                  <Text style={styles.biometricButtonText}>
+                    {getBiometricButtonText()}
+                  </Text>
+                  <Text style={styles.biometricButtonSubtext}>
+                    Login cepat dan aman
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {isBiometricLocked && (
+            <View style={styles.lockedContainer}>
+              <Text style={styles.lockedWarning}>🔒 Biometrik terkunci sementara</Text>
+              <Text style={styles.lockedSubtext}>
+                Terlalu banyak percobaan gagal. Gunakan login manual.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.quickFillContainer}>
             <Text style={styles.quickFillTitle}>Quick Fill:</Text>
             <View style={styles.quickFillButtons}>
@@ -188,7 +257,19 @@ const LoginScreen: React.FC = () => {
             </View>
           </View>
 
-          {/* Demo credentials info */}
+          <View style={styles.biometricInfoContainer}>
+            <Text style={styles.biometricInfoTitle}>Info Biometrik:</Text>
+            <Text style={styles.biometricInfoText}>
+              • Tersedia: {biometricSupported ? '✅ Ya' : '❌ Tidak'}
+            </Text>
+            <Text style={styles.biometricInfoText}>
+              • Tipe: {biometricType || 'Tidak terdeteksi'}
+            </Text>
+            <Text style={styles.biometricInfoText}>
+              • Status: {isBiometricLocked ? '🔒 Terkunci' : '🔓 Aktif'}
+            </Text>
+          </View>
+
           <View style={styles.demoContainer}>
             <Text style={styles.demoTitle}>Informasi Login:</Text>
             <Text style={styles.demoText}>
@@ -202,7 +283,6 @@ const LoginScreen: React.FC = () => {
             </Text>
           </View>
 
-          {/* Debug info */}
           <View style={styles.debugContainer}>
             <Text style={styles.debugTitle}>Debug Info:</Text>
             <Text style={styles.debugText}>
@@ -210,6 +290,9 @@ const LoginScreen: React.FC = () => {
             </Text>
             <Text style={styles.debugText}>
               Loading: {loading ? '🔄 Yes' : '⚪ No'}
+            </Text>
+            <Text style={styles.debugText}>
+              Biometric Loading: {biometricLoading ? '🔄 Yes' : '⚪ No'}
             </Text>
             <Text style={styles.debugText}>
               Username: {credentials.username || '(empty)'}
@@ -290,7 +373,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#007AFF',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -307,8 +390,55 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
+  biometricButton: {
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  biometricButtonDisabled: {
+    borderColor: '#CCC',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  biometricButtonText: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  biometricButtonSubtext: {
+    color: '#666',
+    fontSize: 12,
+  },
+  lockedContainer: {
+    backgroundColor: '#FFE6E6',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC3545',
+  },
+  lockedWarning: {
+    color: '#DC3545',
+    fontWeight: '600',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  lockedSubtext: {
+    color: '#DC3545',
+    fontSize: 12,
+  },
   quickFillContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   quickFillTitle: {
     fontSize: 14,
@@ -331,6 +461,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     textAlign: 'center',
+  },
+  biometricInfoContainer: {
+    backgroundColor: '#F0F8FF',
+    padding: 16,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007AFF',
+    marginBottom: 16,
+  },
+  biometricInfoTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 8,
+  },
+  biometricInfoText: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginBottom: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   demoContainer: {
     backgroundColor: '#E8F5E8',

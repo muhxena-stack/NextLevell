@@ -1,4 +1,4 @@
-// src/screens/CheckoutScreen.tsx - FIXED VERSION
+// src/screens/CheckoutScreen.tsx - COMPLETE MODIFIED VERSION
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView,
@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { Product } from '../types/types';
 import { RetryUtils } from '../utils/retryUtils';
+import { biometricService } from '../security/biometricService';
 
 type CheckoutScreenRouteProp = RouteProp<{ Checkout: { product?: Product } }, 'Checkout'>;
 
@@ -38,7 +39,7 @@ const CheckoutScreenContent: React.FC = () => {
   const navigation = useNavigation();
   const { product } = route.params || {};
   const { cartItems, getTotalPrice, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, biometricSupported } = useAuth();
   
   const [formData, setFormData] = useState<CheckoutForm>({
     namaPenerima: user?.nama || '',
@@ -53,8 +54,8 @@ const CheckoutScreenContent: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showBiometricOption, setShowBiometricOption] = useState(false);
 
-  // Auto-fill user data
   useEffect(() => {
     const initializeForm = async () => {
       try {
@@ -62,11 +63,14 @@ const CheckoutScreenContent: React.FC = () => {
           setFormData(prev => ({
             ...prev,
             namaPenerima: user.nama || '',
-            telepon: '08' + Math.random().toString().slice(2, 11) // Random phone
+            telepon: '08' + Math.random().toString().slice(2, 11)
           }));
         }
-        
-        // ✅ FIX: Type-safe setTimeout
+
+        if (biometricSupported) {
+          setShowBiometricOption(true);
+        }
+
         await new Promise<void>((resolve) => setTimeout(resolve, 500));
         setIsLoading(false);
       } catch (error) {
@@ -76,7 +80,7 @@ const CheckoutScreenContent: React.FC = () => {
     };
 
     initializeForm();
-  }, [user]);
+  }, [user, biometricSupported]);
 
   const handleInputChange = (field: keyof CheckoutForm, value: string) => {
     setFormData(prev => ({
@@ -129,16 +133,76 @@ const CheckoutScreenContent: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+ const handleBiometricPayment = async (totalAmount: number): Promise<boolean> => {
+  try {
+    console.log('💰 Starting biometric payment confirmation...');
+    
+    // ✅ GUNAKAN METHOD confirmPayment YANG SUDAH ADA
+    const success = await biometricService.confirmPayment(totalAmount);
+    
+    if (success) {
+      console.log('✅ Biometric payment confirmation successful');
+      return true;
+    } else {
+      console.log('❌ Biometric payment confirmation failed or canceled');
+      Alert.alert('Dibatalkan', 'Transfer dibatalkan.');
+      return false;
+    }
+  } catch (error: any) {
+    console.error('❌ Biometric payment error:', error);
+    
+    if (error.message === 'BIOMETRIC_LOCKOUT') {
+      Alert.alert(
+        'Biometrik Terkunci',
+        'Terlalu banyak percobaan gagal. Silakan gunakan konfirmasi manual.'
+      );
+    } else {
+      Alert.alert('Error', 'Verifikasi biometrik gagal. Silakan coba lagi.');
+    }
+    
+    return false;
+  }
+};
+
   const handleConfirmCheckout = async () => {
     if (!validateForm()) {
       Alert.alert('Error', 'Harap perbaiki kesalahan pada form sebelum melanjutkan');
       return;
     }
 
+    const totalAmount = getTotalPrice() + 15000 + (formData.metodePembayaran === 'cod' ? 5000 : 0);
+    const requiresBiometric = totalAmount >= 500000;
+
+    if (requiresBiometric && showBiometricOption) {
+      const useBiometric = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'Konfirmasi Keamanan',
+          `Transfer sebesar Rp ${totalAmount.toLocaleString('id-ID')} memerlukan verifikasi biometrik untuk keamanan.`,
+          [
+            {
+              text: 'Gunakan Password',
+              style: 'cancel',
+              onPress: () => resolve(false)
+            },
+            {
+              text: 'Verifikasi Biometrik',
+              onPress: () => resolve(true)
+            }
+          ]
+        );
+      });
+
+      if (useBiometric) {
+        const biometricSuccess = await handleBiometricPayment(totalAmount);
+        if (!biometricSuccess) {
+          return;
+        }
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
-      // ✅ Tugas e: Gunakan Retry Logic untuk checkout
       await RetryUtils.withRetry(async () => {
         console.log('📦 Processing checkout with retry logic...');
         
@@ -154,16 +218,15 @@ const CheckoutScreenContent: React.FC = () => {
           },
           catatan: formData.catatan,
           metodePembayaran: formData.metodePembayaran,
-          total: getTotalPrice() + 15000, // + ongkir
-          timestamp: new Date().toISOString()
+          total: totalAmount,
+          timestamp: new Date().toISOString(),
+          biometricConfirmed: requiresBiometric && showBiometricOption
         };
 
         console.log('💳 Checkout Data:', checkoutData);
 
-        // ✅ FIX: Type-safe Promise dengan reject
         await new Promise<void>((resolve, reject) => {
           setTimeout(() => {
-            // 20% chance of error untuk testing retry
             if (Math.random() < 0.2) {
               reject(new Error('Payment gateway timeout'));
             } else {
@@ -175,16 +238,15 @@ const CheckoutScreenContent: React.FC = () => {
         return checkoutData;
       });
 
-      // Success
       Alert.alert(
         'Checkout Berhasil! 🎉',
-        `Pesanan Anda telah diterima.\n\nTotal: Rp ${(getTotalPrice() + 15000).toLocaleString('id-ID')}\n\nKode pesanan: #${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+        `Pesanan Anda telah diterima.\n\nTotal: Rp ${totalAmount.toLocaleString('id-ID')}\n\nKode pesanan: #${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
         [
           {
             text: 'Kembali ke Beranda',
             onPress: () => {
               if (!product) {
-                clearCart(); // Clear cart hanya jika checkout dari cart
+                clearCart();
               }
               navigation.navigate('HomeTab' as never);
             }
@@ -194,11 +256,7 @@ const CheckoutScreenContent: React.FC = () => {
 
     } catch (error: any) {
       console.error('❌ Checkout error:', error);
-      
-      Alert.alert(
-        'Checkout Gagal',
-        error.message || 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.'
-      );
+      Alert.alert('Checkout Gagal', error.message || 'Terjadi kesalahan saat memproses pembayaran.');
     } finally {
       setIsSubmitting(false);
     }
@@ -304,6 +362,8 @@ const CheckoutScreenContent: React.FC = () => {
     );
   }
 
+  const totalAmount = getTotalPrice() + 15000 + (formData.metodePembayaran === 'cod' ? 5000 : 0);
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -312,10 +372,8 @@ const CheckoutScreenContent: React.FC = () => {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Product/Cart Info */}
         {renderProductInfo()}
 
-        {/* Form Pengiriman */}
         <View style={styles.shippingInfo}>
           <Text style={styles.sectionTitle}>📦 Informasi Pengiriman</Text>
           
@@ -327,7 +385,6 @@ const CheckoutScreenContent: React.FC = () => {
           {renderFormField('Catatan', 'catatan', 'Catatan untuk kurir (opsional)...', true, false)}
         </View>
 
-        {/* Metode Pembayaran */}
         <View style={styles.paymentInfo}>
           <Text style={styles.sectionTitle}>💵 Metode Pembayaran</Text>
           
@@ -358,7 +415,6 @@ const CheckoutScreenContent: React.FC = () => {
           )}
         </View>
 
-        {/* Ringkasan */}
         <View style={styles.summary}>
           <Text style={styles.summaryTitle}>🧾 Ringkasan Pembayaran</Text>
           
@@ -382,20 +438,34 @@ const CheckoutScreenContent: React.FC = () => {
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total Pembayaran</Text>
             <Text style={styles.totalValue}>
-              Rp {(getTotalPrice() + 15000 + (formData.metodePembayaran === 'cod' ? 5000 : 0)).toLocaleString('id-ID')}
+              Rp {totalAmount.toLocaleString('id-ID')}
             </Text>
           </View>
+
+          {showBiometricOption && totalAmount >= 500000 && (
+            <View style={styles.securityInfo}>
+              <Text style={styles.securityTitle}>🔒 Verifikasi Biometrik Diperlukan</Text>
+              <Text style={styles.securityText}>
+                • Transaksi di atas Rp 500.000 memerlukan verifikasi biometrik
+              </Text>
+              <Text style={styles.securityText}>
+                • Pastikan biometrik Anda sudah terdaftar di perangkat
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Informasi Retry (Debug) */}
         {__DEV__ && (
           <View style={styles.debugInfo}>
             <Text style={styles.debugTitle}>🔧 Debug Info:</Text>
             <Text style={styles.debugText}>
-              • Retry logic: Active (max 3 attempts)
+              • Biometric supported: {biometricSupported ? 'Yes' : 'No'}
             </Text>
             <Text style={styles.debugText}>
-              • 20% chance of simulated failure
+              • Biometric required: {totalAmount >= 500000 ? 'Yes' : 'No'}
+            </Text>
+            <Text style={styles.debugText}>
+              • Retry logic: Active (max 3 attempts)
             </Text>
           </View>
         )}
@@ -419,7 +489,7 @@ const CheckoutScreenContent: React.FC = () => {
             <ActivityIndicator color="white" size="small" />
           ) : (
             <Text style={styles.confirmButtonText}>
-              💰 Bayar Rp {(getTotalPrice() + 15000 + (formData.metodePembayaran === 'cod' ? 5000 : 0)).toLocaleString('id-ID')}
+              💰 Bayar Rp {totalAmount.toLocaleString('id-ID')}
             </Text>
           )}
         </TouchableOpacity>
@@ -428,7 +498,6 @@ const CheckoutScreenContent: React.FC = () => {
   );
 };
 
-// ✅ Tugas b: Wrap dengan Protected Route
 const CheckoutScreen: React.FC = () => {
   return (
     <ProtectedRoute>
@@ -566,6 +635,27 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   
+  securityInfo: {
+    backgroundColor: '#E8F5E8',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+  },
+  securityTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 6,
+  },
+  securityText: {
+    fontSize: 12,
+    color: '#2E7D32',
+    marginBottom: 2,
+    lineHeight: 16,
+  },
+  
   debugInfo: {
     backgroundColor: '#fff3cd',
     padding: 12,
@@ -577,7 +667,6 @@ const styles = StyleSheet.create({
   debugTitle: { fontSize: 12, fontWeight: 'bold', color: '#856404', marginBottom: 4 },
   debugText: { fontSize: 10, color: '#856404' },
   
-  // Form styles
   formField: { marginBottom: 16 },
   fieldLabel: { fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 6 },
   requiredStar: { color: '#DC3545' },
